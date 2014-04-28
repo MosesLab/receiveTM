@@ -167,13 +167,9 @@ int main(int argc, char* argv[])
 	}
 
         /* set transmit idle pattern (sent between frames) */
-	idle = HDLC_TXIDLE_ALT_ZEROS_ONES;
-	rc = ioctl(fd, MGSL_IOCSTXIDLE, idle);
-	if (rc < 0) {
-		printf("ioctl(MGSL_IOCSTXIDLE) error=%d %s\n",
-		       errno, strerror(errno));
-		return rc;
-	}
+	//idle = HDLC_TXIDLE_ALT_ZEROS_ONES;
+	rc = ioctl(fd, MGSL_IOCSTXIDLE, &idle);
+	
         
 	printf("Turn on RTS and DTR serial outputs\n");
 	sigs = TIOCM_RTS + TIOCM_DTR;
