@@ -166,9 +166,6 @@ int main(int argc, char* argv[])
 		return rc;
 	}
 
-        /* set transmit idle pattern (sent between frames) */
-	//idle = HDLC_TXIDLE_ALT_ZEROS_ONES;
-	rc = ioctl(fd, MGSL_IOCSTXIDLE, &idle);
 	
         
 	printf("Turn on RTS and DTR serial outputs\n");
@@ -186,7 +183,11 @@ int main(int argc, char* argv[])
 	printf("Press Ctrl-C to stop program.\n");
 	signal(SIGINT, sigint_handler);
 	siginterrupt(SIGINT, 1);
-
+        
+        /*enable receiver*/
+        int enable = 1;
+        rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
+        
 	for (;;) {
 
 		/* get received data from serial device */
