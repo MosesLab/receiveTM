@@ -184,9 +184,6 @@ int main(int argc, char* argv[])
 	signal(SIGINT, sigint_handler);
 	siginterrupt(SIGINT, 1);
         
-        /*enable receiver*/
-        int enable = 1;
-        rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
         
 	for (;;) {
 
