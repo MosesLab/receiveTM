@@ -90,9 +90,9 @@ int main(int argc, char* argv[])
 	MGSL_PARAMS params;
 	int sigs, idle;
 	FILE *fp = NULL;
-	int size = 1024;
+	int size = 4096;
 	int count;
-	unsigned char buf[1024];
+	unsigned char buf[4096];
 	char *devname;
 
 	if (argc > 1)
