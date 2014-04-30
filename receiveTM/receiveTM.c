@@ -156,7 +156,9 @@ int main(int argc, char* argv[])
 	params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
 	params.encoding = HDLC_ENCODING_NRZ;
 	params.clock_speed = HDLC_FLAG_TXC_BRG;
-	params.crc_type = HDLC_CRC_NONE;
+	params.crc_type = HDLC_CRC_16_CCITT + HDLC_CRC_RETURN_EX;
+        params.preamble = HDLC_PREAMBLE_PATTERN_ONES;
+        params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
 
 	/* set current device parameters */
 	rc = ioctl(fd, MGSL_IOCSPARAMS, &params);

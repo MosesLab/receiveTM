@@ -240,7 +240,7 @@ struct mgsl_icount {
 
 struct gpio_desc {
 	__u32 state;
-	__u32 smask;NRZ
+	__u32 smask;
 	__u32 dir;
 	__u32 dmask;
 };
