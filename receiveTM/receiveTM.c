@@ -154,7 +154,7 @@ int main(int argc, char* argv[])
 	params.mode = MGSL_MODE_HDLC;
 	params.loopback = 0;
 	params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
-	params.encoding = HDLC_ENCODING_NRZI_SPACE;
+	params.encoding = HDLC_ENCODING_NRZ;
 	params.clock_speed = HDLC_FLAG_TXC_BRG;
 	params.crc_type = HDLC_CRC_NONE;
 
