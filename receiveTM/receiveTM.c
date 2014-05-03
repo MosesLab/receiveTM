@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
 	if (argc > 1)
 		devname = argv[1];
 	else
-		devname = "/dev/ttySLG0";
+		devname = "/dev/ttyUSB0";
 
 	printf("receive HDLC data on %s\n", devname);
 
@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
 	params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
 	params.encoding = HDLC_ENCODING_NRZ;
 	params.clock_speed = HDLC_FLAG_TXC_BRG;
-	params.crc_type = HDLC_CRC_16_CCITT + HDLC_CRC_RETURN_EX;
+	params.crc_type = HDLC_CRC_16_CCITT;
         params.preamble = HDLC_PREAMBLE_PATTERN_ONES;
         params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
 
@@ -168,15 +168,6 @@ int main(int argc, char* argv[])
 		return rc;
 	}
 
-	/* set transmit idle pattern (sent between frames) */
-	idle = HDLC_TXIDLE_ALT_ZEROS_ONES;
-        //idle = HDLC_TXIDLE_CUSTOM_8 + 0xff;
-	rc = ioctl(fd, MGSL_IOCSTXIDLE, idle);
-	if (rc < 0) {
-		printf("ioctl(MGSL_IOCSTXIDLE) error=%d %s\n",
-		       errno, strerror(errno));
-		return rc;
-	}
         
 	printf("Turn on RTS and DTR serial outputs\n");
 	sigs = TIOCM_RTS + TIOCM_DTR;
@@ -205,17 +196,9 @@ int main(int argc, char* argv[])
 		}
 		if (rc == 0) {
 			printf("read returned with no data\n");
-			continue;
+			break;
 		}
 		printf("received %d bytes\n", rc);
-                
-//                int crc_status = buf[rc-1] & HDLC_CRC_MASK;
-//                if(crc_status == RX_OK){
-//                    fprintf("%s\n", "OK");
-//                }
-//                else{
-//                    fprintf("%s\n", "CRC Failed");
-//                }
                 
 		/* save received data to file */
 		count = fwrite(buf, sizeof(char), rc, fp);
