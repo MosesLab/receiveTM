@@ -201,7 +201,13 @@ int main(int argc, char* argv[])
 		}
 		printf("received %d bytes\n", rc);
                 
-                printf("rx frame %s, crc=", (buf[rc-1] & HDLC_CRC_MASK) == RX_OK?"OK":"error"); 
+                int crc_status = buf[rc-1] & HDLC_CRC_MASK;
+                if(crc_status == RX_OK){
+                    fprintf("OK\n");
+                }
+                else{
+                    fprintf("CRC Error\n");
+                }
                 
 		/* save received data to file */
 		count = fwrite(buf, sizeof(char), rc, fp);
