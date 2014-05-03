@@ -203,10 +203,10 @@ int main(int argc, char* argv[])
                 
                 int crc_status = buf[rc-1] & HDLC_CRC_MASK;
                 if(crc_status == RX_OK){
-                    fprintf("OK\n");
+                    fprintf("%s\n", "OK");
                 }
                 else{
-                    fprintf("CRC Error\n");
+                    fprintf("%s\n", "CRC Failed");
                 }
                 
 		/* save received data to file */
