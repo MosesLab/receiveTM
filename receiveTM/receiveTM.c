@@ -63,162 +63,182 @@
  * configuration with the actual value so correct divisors are used for
  * a specified data rate.
  */
-int set_base_clock(int fd, unsigned int freq)
-{
-	MGSL_PARAMS params;
-	int rc;
+int set_base_clock(int fd, unsigned int freq) {
+    MGSL_PARAMS params;
+    int rc;
 
-	/* fields other than mode and clock_speed are ignored */
-	params.mode = MGSL_MODE_BASE_CLOCK;
-	params.clock_speed = freq;
-	rc = ioctl(fd, MGSL_IOCSPARAMS, &params);
-	if (rc < 0) {
-		printf("set base clock frequency error=%d %s\n",
-		       errno, strerror(errno));
-	}
-	return rc;
+    /* fields other than mode and clock_speed are ignored */
+    params.mode = MGSL_MODE_BASE_CLOCK;
+    params.clock_speed = freq;
+    rc = ioctl(fd, MGSL_IOCSPARAMS, &params);
+    if (rc < 0) {
+        printf("set base clock frequency error=%d %s\n",
+                errno, strerror(errno));
+    }
+    return rc;
+}
+
+int * openFile(char* name) {
+    FILE *fp = NULL;
+    fp = fopen(name, "wb");
+    if (fp == NULL) {
+        printf("fopen error=%d %s\n", errno, strerror(errno));
+        return errno;
+    }
 }
 
 /* handle SIGINT - do nothing */
-void sigint_handler(int sigid){}
+void sigint_handler(int sigid) {
+}
 
-int main(int argc, char* argv[])
-{
-	int fd;
-	int rc;
-	int ldisc = N_HDLC;
-	MGSL_PARAMS params;
-	int sigs, idle;
-	FILE *fp = NULL;
-	int size = 4096;
-	int count;
-	unsigned char buf[4096];
-	char *devname;
+int main(int argc, char* argv[]) {
+    int fd;
+    int rc;
+    int ldisc = N_HDLC;
+    MGSL_PARAMS params;
+    int sigs, idle;
+    FILE *fp = NULL;
+    char * writeFiles[] = {"image0", "image1", "image2"};
+    int fileCount = 0;
+    int size = 4096;
+    int count;
+    unsigned char buf[4096];
+    char *devname;
 
-	if (argc > 1)
-		devname = argv[1];
-	else
-		devname = "/dev/ttyUSB0";
+    if (argc > 1)
+        devname = argv[1];
+    else
+        devname = "/dev/ttyUSB0";
 
-	printf("receive HDLC data on %s\n", devname);
+    printf("receive HDLC data on %s\n", devname);
 
-	/* open file to save received data */
-	fp = fopen("data", "wb");
-	if (fp == NULL) {
-		printf("fopen error=%d %s\n", errno, strerror(errno));
-		return errno;
-	}
 
-	/* open serial device with O_NONBLOCK to ignore DCD input */
-	fd = open(devname, O_RDWR | O_NONBLOCK, 0);
-	if (fd < 0) {
-		printf("open error=%d %s\n", errno, strerror(errno));
-		return errno;
-	}
 
-	/*
-	 * set N_HDLC line discipline
-	 *
-	 * A line discipline is a software layer between a tty device driver
-	 * and user application that performs intermediate processing,
-	 * formatting, and buffering of data.
-	 */
-	rc = ioctl(fd, TIOCSETD, &ldisc);
-	if(rc < 0) {
-		printf("set line discipline error=%d %s\n",
-		       errno, strerror(errno));
-		return rc;
-	}
+    /* open serial device with O_NONBLOCK to ignore DCD input */
+    fd = open(devname, O_RDWR | O_NONBLOCK, 0);
+    if (fd < 0) {
+        printf("open error=%d %s\n", errno, strerror(errno));
+        return errno;
+    }
 
-	/* required only if custom base clock (not 14745600) installed */
-//	if (set_base_clock(fd, 32000000) < 0)
-//		return rc;
+    /*
+     * set N_HDLC line discipline
+     *
+     * A line discipline is a software layer between a tty device driver
+     * and user application that performs intermediate processing,
+     * formatting, and buffering of data.
+     */
+    rc = ioctl(fd, TIOCSETD, &ldisc);
+    if (rc < 0) {
+        printf("set line discipline error=%d %s\n",
+                errno, strerror(errno));
+        return rc;
+    }
 
-	/* get current device parameters */
-	rc = ioctl(fd, MGSL_IOCGPARAMS, &params);
-	if (rc < 0) {
-		printf("ioctl(MGSL_IOCGPARAMS) error=%d %s\n",
-		       errno, strerror(errno));
-		return rc;
-	}
+    /* required only if custom base clock (not 14745600) installed */
+    //	if (set_base_clock(fd, 32000000) < 0)
+    //		return rc;
 
-	/*
-	 * modify device parameters
-	 *
-	 * HDLC/SDLC mode, loopback disabled, NRZ encoding
-	 * Data clocks sourced from clock input pins
-	 * Output 9600bps clock on auxclk output
-	 * Hardware generation/checking of CCITT (ITU) CRC 16
-	 */
+    /* get current device parameters */
+    rc = ioctl(fd, MGSL_IOCGPARAMS, &params);
+    if (rc < 0) {
+        printf("ioctl(MGSL_IOCGPARAMS) error=%d %s\n",
+                errno, strerror(errno));
+        return rc;
+    }
 
-	params.mode = MGSL_MODE_HDLC;
-	params.loopback = 0;
-	params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
-	params.encoding = HDLC_ENCODING_NRZ;
-	params.clock_speed = HDLC_FLAG_TXC_BRG;
-	params.crc_type = HDLC_CRC_16_CCITT;
-        params.preamble = HDLC_PREAMBLE_PATTERN_ONES;
-        params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
+    /*
+     * modify device parameters
+     *
+     * HDLC/SDLC mode, loopback disabled, NRZ encoding
+     * Data clocks sourced from clock input pins
+     * Output 9600bps clock on auxclk output
+     * Hardware generation/checking of CCITT (ITU) CRC 16
+     */
 
-	/* set current device parameters */
-	rc = ioctl(fd, MGSL_IOCSPARAMS, &params);
-	if (rc < 0) {
-		printf("ioctl(MGSL_IOCSPARAMS) error=%d %s\n",
-		       errno, strerror(errno));
-		return rc;
-	}
+    params.mode = MGSL_MODE_HDLC;
+    params.loopback = 0;
+    params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
+    params.encoding = HDLC_ENCODING_NRZ;
+    params.clock_speed = HDLC_FLAG_TXC_BRG;
+    params.crc_type = HDLC_CRC_16_CCITT;
+    params.preamble = HDLC_PREAMBLE_PATTERN_ONES;
+    params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
 
-        
-	printf("Turn on RTS and DTR serial outputs\n");
-	sigs = TIOCM_RTS + TIOCM_DTR;
-	rc = ioctl(fd, TIOCMBIC, &sigs);
-	if(rc < 0) {
-		printf("assert DTR/RTS error=%d %s\n", errno, strerror(errno));
-		return rc;
-	}
+    /* set current device parameters */
+    rc = ioctl(fd, MGSL_IOCSPARAMS, &params);
+    if (rc < 0) {
+        printf("ioctl(MGSL_IOCSPARAMS) error=%d %s\n",
+                errno, strerror(errno));
+        return rc;
+    }
 
-	/* set device to blocking mode for reads and writes */
-	fcntl(fd, F_SETFL, fcntl(fd,F_GETFL) + ~O_NONBLOCK);
 
-	/* set ctrl-C to interrupt syscall but not exit program */
-	printf("Press Ctrl-C to stop program.\n");
-	signal(SIGINT, sigint_handler);
-	siginterrupt(SIGINT, 1);
-        
-        
-	for (;;) {
+    printf("Turn on RTS and DTR serial outputs\n");
+    sigs = TIOCM_RTS + TIOCM_DTR;
+    rc = ioctl(fd, TIOCMBIC, &sigs);
+    if (rc < 0) {
+        printf("assert DTR/RTS error=%d %s\n", errno, strerror(errno));
+        return rc;
+    }
 
-		/* get received data from serial device */
-		rc = read(fd, buf, size);
-		if (rc < 0) {
-			printf("read error=%d %s\n", errno, strerror(errno));
-			break;
-		}
-		if (rc == 0) {
-			printf("read returned with no data\n");
-			break;
-		}
-		printf("received %d bytes\n", rc);
-                
-		/* save received data to file */
-		count = fwrite(buf, sizeof(char), rc, fp);
-		if (count != rc) {
-			printf("fwrite error=%d %s\n", errno, strerror(errno));
-			break;
-		}
-		fflush(fp);
-	}
+    /* set device to blocking mode for reads and writes */
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) + ~O_NONBLOCK);
 
-	printf("Turn off RTS and DTR serial outputs\n");
-	sigs = TIOCM_RTS + TIOCM_DTR;
-	rc = ioctl(fd, TIOCMBIC, &sigs);
-	if (rc < 0) {
-		printf("negate DTR/RTS error=%d %s\n", errno, strerror(errno));
-		return rc;
-	}
+    /* set ctrl-C to interrupt syscall but not exit program */
+    printf("Press Ctrl-C to stop program.\n");
+    signal(SIGINT, sigint_handler);
+    siginterrupt(SIGINT, 1);
 
-	close(fd);
-	fclose(fp);
+    /*enable receiver*/
+    int enable = 2;
+    rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-	return 0;
+    fp = openFile(writeFiles[fileCount]);
+    fileCount++;
+
+    for (;;) {
+
+        /* get received data from serial device */
+        rc = read(fd, buf, size);
+        if (rc < 0) {
+            printf("read error=%d %s\n", errno, strerror(errno));
+            break;
+        }
+        if (rc == 0) {
+            printf("read returned with no data\n");
+            break;
+        }
+        printf("received %d bytes\n", rc);
+
+        /*check if we need to start new file*/
+        if (rc == 5) {
+            fp = openFile(writeFiles[fileCount]);
+            fileCount++;
+        } else {
+
+            /* save received data to file */
+            count = fwrite(buf, sizeof (char), rc, fp);
+            if (count != rc) {
+                printf("fwrite error=%d %s\n", errno, strerror(errno));
+                break;
+            }
+            fflush(fp);
+        }
+    }
+
+
+
+    printf("Turn off RTS and DTR serial outputs\n");
+    sigs = TIOCM_RTS + TIOCM_DTR;
+    rc = ioctl(fd, TIOCMBIC, &sigs);
+    if (rc < 0) {
+        printf("negate DTR/RTS error=%d %s\n", errno, strerror(errno));
+        return rc;
+    }
+
+    close(fd);
+    fclose(fp);
+
+    return 0;
 }
