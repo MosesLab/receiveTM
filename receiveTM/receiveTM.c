@@ -201,13 +201,13 @@ int main(int argc, char* argv[])
 		}
 		printf("received %d bytes\n", rc);
                 
-                int crc_status = buf[rc-1] & HDLC_CRC_MASK;
-                if(crc_status == RX_OK){
-                    fprintf("%s\n", "OK");
-                }
-                else{
-                    fprintf("%s\n", "CRC Failed");
-                }
+//                int crc_status = buf[rc-1] & HDLC_CRC_MASK;
+//                if(crc_status == RX_OK){
+//                    fprintf("%s\n", "OK");
+//                }
+//                else{
+//                    fprintf("%s\n", "CRC Failed");
+//                }
                 
 		/* save received data to file */
 		count = fwrite(buf, sizeof(char), rc, fp);
