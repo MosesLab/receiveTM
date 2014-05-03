@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
 	}
 
 	/* set device to blocking mode for reads and writes */
-	fcntl(fd, F_SETFL, fcntl(fd,F_GETFL) & ~O_NONBLOCK);
+	fcntl(fd, F_SETFL, fcntl(fd,F_GETFL) + ~O_NONBLOCK);
 
 	/* set ctrl-C to interrupt syscall but not exit program */
 	printf("Press Ctrl-C to stop program.\n");
