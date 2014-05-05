@@ -99,6 +99,7 @@ int main(int argc, char* argv[]) {
     int sigs, idle;
     FILE *fp = NULL;
     char * writeFiles[] = {"image0", "image1", "image2"};
+    int numImages = 3;
     int fileCount = 0;
     int size = 4096;
     int count;
@@ -212,10 +213,14 @@ int main(int argc, char* argv[]) {
         printf("received %d bytes\n", rc);
 
         /*check if we need to start new file*/
-        if (rc == 5) {
+        if(rc ==5 && fileCount == numImages){
+            break;
+        }
+        else if (rc == 5) {
             fp = openFile(writeFiles[fileCount]);
             fileCount++;
-        } else {
+        }
+        else {
 
             /* save received data to file */
             count = fwrite(buf, sizeof (char), rc, fp);
