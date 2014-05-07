@@ -98,14 +98,16 @@ int main(int argc, char* argv[]) {
     MGSL_PARAMS params;
     int sigs, idle;
     FILE *fp = NULL;
-    char * writeFiles[] = {"image0", "image1", "image2"};
-    int numImages = 3;
+    char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7","xml7","image8","xml8"};
+    int numImages = 16;
     int fileCount = 0;
     int size = 4096;
     int count;
     unsigned char buf[4096];
     char *devname;
 
+    struct mgsl_icount icount;
+    
     if (argc > 1)
         devname = argv[1];
     else
@@ -197,6 +199,12 @@ int main(int argc, char* argv[]) {
 
     fp = openFile(writeFiles[fileCount]);
     fileCount++;
+    
+    /*crc check setup*/
+    rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
+    __u32 crctemp = icount.rxcrc;
+
+    int index = 0;      //line counter to verify data is still being sent
 
     for (;;) {
 
@@ -210,7 +218,16 @@ int main(int argc, char* argv[]) {
             printf("read returned with no data\n");
             break;
         }
-        printf("received %d bytes\n", rc);
+        printf("received %d bytes       %d\n", rc, index);
+        
+        /*check crc*/
+        /*this code below doesn't save the images to disk*/
+        /*more tests are required to determine the reason why the software doesn't like this code*/
+//        rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
+//        if(crctemp != icount.rxcrc){
+//            printf("CRC Failed!\n");
+//        }
+//        crctemp = icount.rxcrc;
 
         /*check if we need to start new file*/
         if(rc ==5 && fileCount == numImages){
@@ -228,8 +245,10 @@ int main(int argc, char* argv[]) {
                 printf("fwrite error=%d %s\n", errno, strerror(errno));
                 break;
             }
-            fflush(fp);
+           fflush(fp);
         }
+        
+        index++;        //increment line counter
     }
 
 
