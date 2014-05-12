@@ -1,5 +1,22 @@
 /*
+ * MOSES telemetry ground station test code
+ * 
+ * Author: Roy Smart
+ * History:
+ *      Created Apr 28 2014
+ *      Tested May 9 2014 successfully at White Sands Missile Range
+ * 
+ * Uses the Microgate USB Synclink adapter to receive 10 Mbps telemetry data from
+ * TS-7600 flight computer and sendTM.c written by Jake Plovanic.
+ * 
+ * This program requires that ./mgslutil be run beforehand to configure the Synclink device.
+ * 10 Mbps is only possible in rs422 mode.
+ * 
+ *      ./mgslutil rs422
+ * 
  * receive HDLC/SDLC data and write received data to a file
+ * 
+ * Code is based off of receive-hdlc.c sample code provided by Microgate
  *
  * This sample demonstrates HDLC communications using a
  * SyncLink serial card. The companion sample send-hdlc.c sends
@@ -16,24 +33,6 @@
  * 3. receive data from serial device (syscall read)
  * 4. write received data to a file
  *
- * For more information about SyncLink specific programming refer to
- * the Programming.txt file included with the SyncLink software package.
- *
- * Microgate and SyncLink are registered trademarks
- * of Microgate corporation.
- *
- * This code is released under the GNU General Public License (GPL)
- * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <stdio.h>
@@ -207,7 +206,14 @@ int main(int argc, char* argv[]) {
     int index = 0;      //line counter to verify data is still being sent
 
     for (;;) {
-
+        
+        /*check crc*/
+        rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
+        if(crctemp != icount.rxcrc){
+            printf("CRC Failed!\n");
+        }
+        crctemp = icount.rxcrc;
+        
         /* get received data from serial device */
         rc = read(fd, buf, size);
         if (rc < 0) {
@@ -220,14 +226,7 @@ int main(int argc, char* argv[]) {
         }
         printf("received %d bytes       %d\n", rc, index);
         
-        /*check crc*/
-        /*this code below doesn't save the images to disk*/
-        /*more tests are required to determine the reason why the software doesn't like this code*/
-//        rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
-//        if(crctemp != icount.rxcrc){
-//            printf("CRC Failed!\n");
-//        }
-//        crctemp = icount.rxcrc;
+
 
         /*check if we need to start new file*/
         if(rc ==5 && fileCount == numImages){
