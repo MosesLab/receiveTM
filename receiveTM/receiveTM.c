@@ -210,7 +210,7 @@ int main(int argc, char* argv[]) {
         /*check crc*/
         rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
         if(crctemp != icount.rxcrc){
-            printf("CRC Failed!\n");
+            printf("    CRC Failed!\n");
         }
         crctemp = icount.rxcrc;
         
@@ -225,19 +225,17 @@ int main(int argc, char* argv[]) {
             break;
         }
         printf("received %d bytes       %d\n", rc, index);
-        
-
-
-        /*check if we need to start new file*/
+                
         if(rc ==5 && fileCount == numImages){
+            /*check if all expected files have arrived*/
             break;
         }
         else if (rc == 5) {
+            /*check if we need to start new file*/
             fp = openFile(writeFiles[fileCount]);
             fileCount++;
         }
         else {
-
             /* save received data to file */
             count = fwrite(buf, sizeof (char), rc, fp);
             if (count != rc) {
