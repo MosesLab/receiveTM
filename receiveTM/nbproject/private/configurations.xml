@@ -24,10 +24,13 @@
       </nativedebugger>
       <runprofile version="9">
         <runcommandpicklist>
-          <runcommandpicklistitem>"${OUTPUT_PATH}"</runcommandpicklistitem>
           <runcommandpicklistitem>sudo "${OUTPUT_PATH}" /dev/ttyUSB0</runcommandpicklistitem>
+          <runcommandpicklistitem>sudo "${OUTPUT_PATH}" /dev/ttyUSB1</runcommandpicklistitem>
+          <runcommandpicklistitem>sudo "${OUTPUT_PATH}" /dev/ttyUSB2</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}"</runcommandpicklistitem>
+          <runcommandpicklistitem>sudo "${OUTPUT_PATH}"</runcommandpicklistitem>
         </runcommandpicklist>
-        <runcommand>sudo "${OUTPUT_PATH}" /dev/ttyUSB0</runcommand>
+        <runcommand>sudo "${OUTPUT_PATH}"</runcommand>
         <rundir></rundir>
         <buildfirst>true</buildfirst>
         <terminal-type>0</terminal-type>

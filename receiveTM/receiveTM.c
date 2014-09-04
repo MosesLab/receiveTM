@@ -44,6 +44,7 @@
 #include <linux/types.h>
 #include <termios.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "synclink.h"
 
@@ -78,6 +79,7 @@ int set_base_clock(int fd, unsigned int freq) {
 }
 
 int * openFile(char* name) {
+    
     FILE *fp = NULL;
     fp = fopen(name, "wb");
     if (fp == NULL) {
@@ -97,13 +99,22 @@ int main(int argc, char* argv[]) {
     MGSL_PARAMS params;
     int sigs, idle;
     FILE *fp = NULL;
-    char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7","xml7","image8","xml8"};
-    int numImages = 16;
+    char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13",
+                                "image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13",
+                                "image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13",
+                                "image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13",
+                                "image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13"};
+    //int numImages = sizeof(writeFiles) / sizeof(char*);
+    int numImages = 140;
     int fileCount = 0;
     int size = 4096;
     int count;
+    int stressCount = 0;
     unsigned char buf[4096];
     char *devname;
+
+    struct timeval runtime_begin, runtime_end;
+    int runtime_elapsed;
 
     struct mgsl_icount icount;
     
@@ -113,11 +124,14 @@ int main(int argc, char* argv[]) {
         devname = "/dev/ttyUSB0";
 
     printf("receive HDLC data on %s\n", devname);
-
+    printf("receiving/writing %d files\n", numImages);
 
 
     /* open serial device with O_NONBLOCK to ignore DCD input */
     fd = open(devname, O_RDWR | O_NONBLOCK, 0);
+
+    gettimeofday(&runtime_begin, NULL); //Timing
+
     if (fd < 0) {
         printf("open error=%d %s\n", errno, strerror(errno));
         return errno;
@@ -136,6 +150,9 @@ int main(int argc, char* argv[]) {
                 errno, strerror(errno));
         return rc;
     }
+    
+    /*log debugging*/
+    
 
     /* required only if custom base clock (not 14745600) installed */
     //	if (set_base_clock(fd, 32000000) < 0)
@@ -207,34 +224,68 @@ int main(int argc, char* argv[]) {
 
     for (;;) {
         
+        //printf("print marker 1\n");
         /*check crc*/
         rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
         if(crctemp != icount.rxcrc){
             printf("    CRC Failed!\n");
         }
         crctemp = icount.rxcrc;
-        
         /* get received data from serial device */
         rc = read(fd, buf, size);
+        //printf("print marker 2\n");
         if (rc < 0) {
             printf("read error=%d %s\n", errno, strerror(errno));
             break;
         }
         if (rc == 0) {
-            printf("read returned with no data\n");
+            gettimeofday(&runtime_end, NULL); //Timing
+	    runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
+	    printf("program ran for %-3.2f seconds before failing\n", (float) runtime_elapsed / (float) 1000000);
+	    printf("read returned with no data\n");
             break;
         }
         printf("received %d bytes       %d\n", rc, index);
+        //printf("print marker 3\n");
                 
-        if(rc ==5 && fileCount == numImages){
-            /*check if all expected files have arrived*/
-            break;
-        }
-        else if (rc == 5) {
+//        if(rc == 5 && fileCount == numImages){
+//            /*check if all expected files have arrived*/
+//            printf("Finished transferring %d out of %d files \n",fileCount,numImages);
+//            fileCount = 0;
+//        }
+        
+        if (rc == 5) {
             /*check if we need to start new file*/
+            
+            if (fileCount % 28 == 0){
+                printf("Finished transferring %d out of %d files \n",fileCount,numImages);
+                stressCount++;
+		printf("Stress runs: %d\n",stressCount);
+		//fileCount = 0;
+                //fflush(fp);
+            }
+            
+	     if (fileCount == 140){
+                printf("Finished %d files \n",fileCount);
+                stressCount++;
+                printf("Stress runs: %d\n",stressCount);
+                //fileCount = 0;
+                //fflush(fp);
+            }
+
+            printf("creating new file %s\n", writeFiles[fileCount]);
             fp = openFile(writeFiles[fileCount]);
             fileCount++;
+
+	    if (fileCount == 140){
+                printf("Finished %d files \n",fileCount);
+                stressCount++;
+                printf("Stress runs: %d\n",stressCount);
+                break;
+            }
+
         }
+        
         else {
             /* save received data to file */
             count = fwrite(buf, sizeof (char), rc, fp);
@@ -244,7 +295,8 @@ int main(int argc, char* argv[]) {
             }
            fflush(fp);
         }
-        
+        usleep(50);
+        //printf("print marker 4\n");
         index++;        //increment line counter
     }
 

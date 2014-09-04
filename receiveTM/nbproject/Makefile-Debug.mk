@@ -64,8 +64,8 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/receivetm: ${OBJECTFILES}
 
 ${OBJECTDIR}/receiveTM.o: receiveTM.c 
 	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/receiveTM.o receiveTM.c
+	${RM} "$@.d"
+	$(COMPILE.c) -g -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/receiveTM.o receiveTM.c
 
 # Subprojects
 .build-subprojects:
