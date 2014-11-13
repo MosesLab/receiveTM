@@ -84,7 +84,7 @@ int * openFile(char* name) {
     fp = fopen(name, "wb");
     if (fp == NULL) {
         printf("fopen error=%d %s\n", errno, strerror(errno));
-        //return errno;
+        return errno;
     }
 }
 
@@ -99,10 +99,13 @@ int main(int argc, char* argv[]) {
     MGSL_PARAMS params;
     int sigs, idle;
     FILE *fp = NULL;
-    char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6"};
-
+    char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13",
+                                "image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13",
+                                "image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13",
+                                "image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13",
+                                "image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6","image7", "xml7", "image8", "xml8", "image9", "xml9", "image10", "xml10","image11","xml11","image12","xml12","image13","xml13"};
     //int numImages = sizeof(writeFiles) / sizeof(char*);
-    int numImages = 14;
+    int numImages = 140;
     int fileCount = 0;
     int size = 4096;
     int count;
@@ -176,7 +179,7 @@ int main(int argc, char* argv[]) {
     params.loopback = 0;
     params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
     params.encoding = HDLC_ENCODING_NRZ;
-    params.clock_speed = 0;
+    params.clock_speed = HDLC_FLAG_TXC_BRG;
     params.crc_type = HDLC_CRC_16_CCITT;
     params.preamble = HDLC_PREAMBLE_PATTERN_ONES;
     params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
@@ -210,7 +213,7 @@ int main(int argc, char* argv[]) {
     int enable = 2;
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-    fp = (FILE*)openFile(writeFiles[fileCount]);
+    fp = openFile(writeFiles[fileCount]);
     fileCount++;
     
     /*crc check setup*/
@@ -244,24 +247,43 @@ int main(int argc, char* argv[]) {
         }
         printf("received %d bytes       %d\n", rc, index);
         //printf("print marker 3\n");
+                
+//        if(rc == 5 && fileCount == numImages){
+//            /*check if all expected files have arrived*/
+//            printf("Finished transferring %d out of %d files \n",fileCount,numImages);
+//            fileCount = 0;
+//        }
         
         if (rc == 5) {
             /*check if we need to start new file*/
             
-	     if (fileCount == numImages){
-                 /*all done*/
-                 printf("Finished %d files \n",fileCount);
-                 gettimeofday(&runtime_end, NULL); //Timing
-                 runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
-                 printf("program ran for %-3.2f seconds total\n", (float) runtime_elapsed / (float) 1000000);
-                  
-                 fileCount = 0;
-                 //fflush(fp);
+            if (fileCount % 28 == 0){
+                printf("Finished transferring %d out of %d files \n",fileCount,numImages);
+                stressCount++;
+		printf("Stress runs: %d\n",(2 * stressCount));
+		//fileCount = 0;
+                //fflush(fp);
+            }
+            
+	     if (fileCount == 140){
+                printf("Finished %d files \n",fileCount);
+                stressCount++;
+                printf("Stress runs: %d\n",(2 * stressCount));
+                //fileCount = 0;
+                //fflush(fp);
             }
 
             printf("creating new file %s\n", writeFiles[fileCount]);
-            fp = (FILE*)openFile(writeFiles[fileCount]);
+            fp = openFile(writeFiles[fileCount]);
             fileCount++;
+
+	    if (fileCount == 140){
+                printf("Finished %d files \n",fileCount);
+                stressCount++;
+                printf("Stress runs: %d\n",stressCount);
+                break;
+            }
+
         }
         
         else {
@@ -271,7 +293,7 @@ int main(int argc, char* argv[]) {
                 printf("fwrite error=%d %s\n", errno, strerror(errno));
                 break;
             }
-            fflush(fp);
+           fflush(fp);
         }
         usleep(50);
         //printf("print marker 4\n");
