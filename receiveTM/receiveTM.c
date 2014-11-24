@@ -245,7 +245,7 @@ int main(int argc, char* argv[]) {
         printf("received %d bytes       %d\n", rc, index);
         //printf("print marker 3\n");
         
-        if (rc == 5) {
+        if (rc == 16) {
             /*check if we need to start new file*/
             
 	     if (fileCount == numImages){
