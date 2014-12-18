@@ -105,8 +105,8 @@ int main(int argc, char* argv[]) {
     int fileCount = 0;
     int count = 0;
     int totalFileSize = 0;
-    unsigned char buf[16777200];
-    int size = 16777200;
+    unsigned char buf[4];
+    int size = 4194300;
     char *devname;
 
     struct timeval runtime_begin, runtime_end;
@@ -238,7 +238,7 @@ int main(int argc, char* argv[]) {
         crctemp = icount.rxcrc;
 */
         /* get received data from serial device */
-        rc = read(fd, buf, size);
+        rc = read(fd, buf, 4194300);
         
         if (rc < 0) {
             printf("read error=%d %s\n", errno, strerror(errno));
