@@ -103,10 +103,10 @@ int main(int argc, char* argv[]) {
     //int numImages = sizeof(writeFiles) / sizeof(char*);
     int numImages = 14;
     int fileCount = 0;
-    int count;
+    int count = 0;
     int totalFileSize = 0;
-    unsigned char buf[BUFSIZ];
-    int size = BUFSIZ;
+    unsigned char buf[16777200];
+    int size = 16777200;
     char *devname;
 
     struct timeval runtime_begin, runtime_end;
