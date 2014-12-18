@@ -93,21 +93,20 @@ void sigint_handler(int sigid) {
 }
 
 int main(int argc, char* argv[]) {
-    int fd;
-    int rc;
+    int fd, rc;
     int ldisc = N_HDLC;
     MGSL_PARAMS params;
-    int sigs, idle;
     FILE *fp = NULL;
+    int sigs, idle;
     char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6"};
 
     //int numImages = sizeof(writeFiles) / sizeof(char*);
     int numImages = 14;
     int fileCount = 0;
-    int size = 4096;
     int count;
-    int stressCount = 0;
-    unsigned char buf[4096];
+    int totalFileSize = 0;
+    unsigned char buf[BUFSIZ];
+    int size = BUFSIZ;
     char *devname;
 
     struct timeval runtime_begin, runtime_end;
@@ -126,6 +125,7 @@ int main(int argc, char* argv[]) {
 
     /* open serial device with O_NONBLOCK to ignore DCD input */
     fd = open(devname, O_RDWR | O_NONBLOCK, 0);
+    
 
     gettimeofday(&runtime_begin, NULL); //Timing
 
@@ -133,6 +133,7 @@ int main(int argc, char* argv[]) {
         printf("open error=%d %s\n", errno, strerror(errno));
         return errno;
     }
+    else printf("%s port opened\n", devname);
 
     /*
      * set N_HDLC line discipline
@@ -141,7 +142,7 @@ int main(int argc, char* argv[]) {
      * and user application that performs intermediate processing,
      * formatting, and buffering of data.
      */
-    rc = ioctl(fd, TIOCSETD, &ldisc);
+    rc = ioctl(fd, TIOCSETD, &ldisc);                         //Change to N_TTY?
     if (rc < 0) {
         printf("set line discipline error=%d %s\n",
                 errno, strerror(errno));
@@ -152,16 +153,18 @@ int main(int argc, char* argv[]) {
     
 
     /* required only if custom base clock (not 14745600) installed */
-    //	if (set_base_clock(fd, 32000000) < 0)
-    //		return rc;
+    	if (set_base_clock(fd, 32000000) < 0) {
+    		return rc;
+        }
 
-    /* get current device parameters */
+    // get current device parameters
     rc = ioctl(fd, MGSL_IOCGPARAMS, &params);
     if (rc < 0) {
         printf("ioctl(MGSL_IOCGPARAMS) error=%d %s\n",
                 errno, strerror(errno));
         return rc;
     }
+
 
     /*
      * modify device parameters
@@ -172,13 +175,13 @@ int main(int argc, char* argv[]) {
      * Hardware generation/checking of CCITT (ITU) CRC 16
      */
 
-    params.mode = MGSL_MODE_HDLC;
+    params.mode = MGSL_MODE_HDLC;                             //Change to N_TTY?
     params.loopback = 0;
     params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
     params.encoding = HDLC_ENCODING_NRZ;
     params.clock_speed = 0;
     params.crc_type = HDLC_CRC_16_CCITT;
-    params.preamble = HDLC_PREAMBLE_PATTERN_ONES;
+    params.preamble = HDLC_PREAMBLE_PATTERN_ONES;               //Remove?
     params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
 
     /* set current device parameters */
@@ -191,7 +194,7 @@ int main(int argc, char* argv[]) {
 
 
     printf("Turn on RTS and DTR serial outputs\n");
-    sigs = TIOCM_RTS + TIOCM_DTR;
+    sigs = TIOCM_RTS | TIOCM_DTR;
     rc = ioctl(fd, TIOCMBIC, &sigs);
     if (rc < 0) {
         printf("assert DTR/RTS error=%d %s\n", errno, strerror(errno));
@@ -207,10 +210,14 @@ int main(int argc, char* argv[]) {
     siginterrupt(SIGINT, 1);
 
     /*enable receiver*/
-    int enable = 2;
+    int enable = 2;                                             //Change to 1?
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-    fp = (FILE*)openFile(writeFiles[fileCount]);
+    fp = fopen(writeFiles[fileCount], "wb");
+    if (fp == NULL) {
+		printf("fopen error=%d %s\n", errno, strerror(errno));
+		return errno;
+    }
     fileCount++;
     
     /*crc check setup*/
@@ -223,32 +230,34 @@ int main(int argc, char* argv[]) {
         
         //printf("print marker 1\n");
         /*check crc*/
-        rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
+/*
+        rc = ioctl(fd, MGSL_IOCGSTATS, &icount);                //needed?
         if(crctemp != icount.rxcrc){
             printf("    CRC Failed!\n");
         }
         crctemp = icount.rxcrc;
+*/
         /* get received data from serial device */
         rc = read(fd, buf, size);
-        //printf("print marker 2\n");
+        
         if (rc < 0) {
             printf("read error=%d %s\n", errno, strerror(errno));
             break;
         }
-        if (rc == 0) {
+
+        else if (rc == 0) {
             gettimeofday(&runtime_end, NULL); //Timing
 	    runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
 	    printf("program ran for %-3.2f seconds before failing\n", (float) runtime_elapsed / (float) 1000000);
 	    printf("read returned with no data\n");
             break;
         }
-        printf("received %d bytes       %d\n", rc, index);
-        //printf("print marker 3\n");
         
-        if (rc == 16) {
+        else if (rc == 5) {
             /*check if we need to start new file*/
-            
-	     if (fileCount == numImages){
+            printf("received %d bytes       %d\n", rc, index);
+	    
+	    if (fileCount == numImages){
                  /*all done*/
                  printf("Finished %d files \n",fileCount);
                  gettimeofday(&runtime_end, NULL); //Timing
@@ -256,26 +265,31 @@ int main(int argc, char* argv[]) {
                  printf("program ran for %-3.2f seconds total\n", (float) runtime_elapsed / (float) 1000000);
                   
                  fileCount = 0;
-                 //fflush(fp);
             }
-
+            else {
             printf("creating new file %s\n", writeFiles[fileCount]);
-            fp = (FILE*)openFile(writeFiles[fileCount]);
+            fclose(fp);
+            fp = fopen(writeFiles[fileCount], "wb");
             fileCount++;
+            index = 0;
+            }
         }
         
         else {
             /* save received data to file */
-            count = fwrite(buf, sizeof (char), rc, fp);
+            printf("received %d bytes       %d\n", rc, index);
+	    count = fwrite(buf, sizeof(char), rc, fp);
             if (count != rc) {
                 printf("fwrite error=%d %s\n", errno, strerror(errno));
                 break;
             }
-            fflush(fp);
+            totalFileSize += count;
+            printf("wrote    %d total bytes\n", totalFileSize);
+            index ++;
         }
-        usleep(50);
+        fflush(fp);
+        //usleep(20);
         //printf("print marker 4\n");
-        index++;        //increment line counter
     }
 
 
