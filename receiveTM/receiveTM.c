@@ -52,6 +52,10 @@
 #define N_HDLC 13
 #endif
 
+#ifndef BUFSIZ
+#define BUFSIZ 4096
+#endif
+
 /*
  * set base clock frequency in cycles per second
  *
@@ -105,8 +109,8 @@ int main(int argc, char* argv[]) {
     int fileCount = 0;
     int count = 0;
     int totalFileSize = 0;
-    unsigned char buf[4];
-    int size = 4194300;
+    unsigned char buf[BUFSIZ];
+    int size = BUFSIZ;
     char *devname;
 
     struct timeval runtime_begin, runtime_end;
@@ -238,7 +242,7 @@ int main(int argc, char* argv[]) {
         crctemp = icount.rxcrc;
 */
         /* get received data from serial device */
-        rc = read(fd, buf, 4194300);
+        rc = read(fd, buf, BUFSIZ);
         
         if (rc < 0) {
             printf("read error=%d %s\n", errno, strerror(errno));
