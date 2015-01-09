@@ -287,11 +287,12 @@ int main(int argc, char* argv[]) {
                 printf("fwrite error=%d %s\n", errno, strerror(errno));
                 break;
             }
+            fflush(fp);
             totalFileSize += count;
             printf("wrote    %d total bytes\n", totalFileSize);
             index ++;
         }
-        fflush(fp);
+        //fflush(fp);
         //usleep(20);
         //printf("print marker 4\n");
     }
