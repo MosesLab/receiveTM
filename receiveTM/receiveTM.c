@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
     int ldisc = N_HDLC;
     MGSL_PARAMS params;
     FILE *fp = NULL;
-    int sigs, idle;
+    int sigs, idle, errcheck;
     char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6"};
 
     //int numImages = sizeof(writeFiles) / sizeof(char*);
@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
     int count = 0;
     int totalFileSize = 0;
     unsigned char buf[BUFSIZ];
-    int size = BUFSIZ;
+    size_t size = BUFSIZ;
     char *devname;
 
     struct timeval runtime_begin, runtime_end;
@@ -222,7 +222,7 @@ int main(int argc, char* argv[]) {
 		printf("fopen error=%d %s\n", errno, strerror(errno));
 		return errno;
     }
-    fileCount++;
+    else fileCount++;
     
     /*crc check setup*/
     rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
@@ -242,7 +242,7 @@ int main(int argc, char* argv[]) {
         crctemp = icount.rxcrc;
 */
         /* get received data from serial device */
-        rc = read(fd, buf, BUFSIZ);
+        rc = read(fd, buf, size);
         
         if (rc < 0) {
             printf("read error=%d %s\n", errno, strerror(errno));
@@ -253,7 +253,7 @@ int main(int argc, char* argv[]) {
             gettimeofday(&runtime_end, NULL); //Timing
 	    runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
 	    printf("program ran for %-3.2f seconds before failing\n", (float) runtime_elapsed / (float) 1000000);
-	    printf("read returned with no data\n");
+	    printf("read returned with no data - set NONBLOCK mode to continue\n");
             break;
         }
         
@@ -271,11 +271,13 @@ int main(int argc, char* argv[]) {
                  fileCount = 0;
             }
             else {
-            printf("creating new file %s\n", writeFiles[fileCount]);
-            fclose(fp);
-            fp = fopen(writeFiles[fileCount], "wb");
-            fileCount++;
-            index = 0;
+                printf("%d total bytes received", totalFileSize);
+                printf("creating new file %s\n", writeFiles[fileCount]);
+                fclose(fp);
+                fp = fopen(writeFiles[fileCount], "wb");
+                totalFileSize = 0;
+                fileCount++;
+                index = 0;
             }
         }
         
@@ -287,9 +289,12 @@ int main(int argc, char* argv[]) {
                 printf("fwrite error=%d %s\n", errno, strerror(errno));
                 break;
             }
-            fflush(fp);
+            errcheck = fflush(fp);
+            if (errcheck != 0){
+                printf("fflush error=%d %s\n", errno, strerror(errno));
+		return errno;
+            }
             totalFileSize += count;
-            printf("wrote    %d total bytes\n", totalFileSize);
             index ++;
         }
         //fflush(fp);
