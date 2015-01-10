@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
     fd = open(devname, O_RDWR | O_NONBLOCK, 0);
     
 
-    gettimeofday(&runtime_begin, NULL); //Timing
+    gettimeofday(&runtime_begin, NULL);                         //Timing
 
     if (fd < 0) {
         printf("open error=%d %s\n", errno, strerror(errno));
@@ -242,6 +242,7 @@ int main(int argc, char* argv[]) {
         crctemp = icount.rxcrc;
 */
         /* get received data from serial device */
+        //printf("    marker 3\n");
         rc = read(fd, buf, size);
         
         if (rc < 0) {
@@ -271,10 +272,11 @@ int main(int argc, char* argv[]) {
                  fileCount = 0;
             }
             else {
-                printf("%d total bytes received", totalFileSize);
+                printf("%d total bytes received for file: %s\n", totalFileSize, writeFiles[fileCount - 1]);
                 printf("creating new file %s\n", writeFiles[fileCount]);
-                fclose(fp);
-                fp = fopen(writeFiles[fileCount], "wb");
+                //fclose(fp);
+                fp = fopen(writeFiles[fileCount], "wb+");
+                //printf("    marker 1");
                 totalFileSize = 0;
                 fileCount++;
                 index = 0;
@@ -290,6 +292,7 @@ int main(int argc, char* argv[]) {
                 break;
             }
             errcheck = fflush(fp);
+            //tcdrain(fp);                                      //not for streams
             if (errcheck != 0){
                 printf("fflush error=%d %s\n", errno, strerror(errno));
 		return errno;
@@ -299,7 +302,7 @@ int main(int argc, char* argv[]) {
         }
         //fflush(fp);
         //usleep(20);
-        //printf("print marker 4\n");
+        //printf("    marker 2");
     }
 
 
