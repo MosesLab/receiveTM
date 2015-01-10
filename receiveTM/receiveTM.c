@@ -242,7 +242,7 @@ int main(int argc, char* argv[]) {
         crctemp = icount.rxcrc;
 */
         /* get received data from serial device */
-        //printf("    marker 3\n");
+        //printf("    marker 4\n");
         rc = read(fd, buf, size);
         
         if (rc < 0) {
@@ -274,9 +274,10 @@ int main(int argc, char* argv[]) {
             else {
                 printf("%d total bytes received for file: %s\n", totalFileSize, writeFiles[fileCount - 1]);
                 printf("creating new file %s\n", writeFiles[fileCount]);
-                //fclose(fp);
+                fclose(fp);
+                //printf("    marker 1\n");
                 fp = fopen(writeFiles[fileCount], "wb+");
-                //printf("    marker 1");
+                //printf("    marker 2\n");
                 totalFileSize = 0;
                 fileCount++;
                 index = 0;
@@ -302,7 +303,7 @@ int main(int argc, char* argv[]) {
         }
         //fflush(fp);
         //usleep(20);
-        //printf("    marker 2");
+        //printf("    marker 3\n");
     }
 
 
