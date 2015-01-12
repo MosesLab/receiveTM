@@ -259,9 +259,9 @@ int main(int argc, char* argv[]) {
         }
         
         else if (rc == 5) {
-            /*check if we need to start new file*/
+            
             printf("received %d bytes       %d\n", rc, index);
-	    
+                /*check if we need to start new file*/
 	    if (fileCount == numImages){
                  /*all done*/
                  printf("Finished %d files \n",fileCount);
