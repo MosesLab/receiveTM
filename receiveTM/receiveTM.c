@@ -82,14 +82,16 @@ int set_base_clock(int fd, unsigned int freq) {
     return rc;
 }
 
-int * openFile(char* name) {
+FILE * openFile(char* name) {
     
     FILE *fp = NULL;
-    fp = fopen(name, "wb");
+    fp = fopen(name, "wb+");
     if (fp == NULL) {
         printf("fopen error=%d %s\n", errno, strerror(errno));
         //return errno;
     }
+    printf("filePath:%ld\n",(long)(fp));
+    return fp;
 }
 
 /* handle SIGINT - do nothing */
@@ -98,9 +100,9 @@ void sigint_handler(int sigid) {
 
 int main(int argc, char* argv[]) {
     int fd, rc;
+    FILE *fp = NULL;
     int ldisc = N_HDLC;
     MGSL_PARAMS params;
-    FILE *fp = NULL;
     int sigs, idle, errcheck;
     char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6"};
 
@@ -157,9 +159,11 @@ int main(int argc, char* argv[]) {
     
 
     /* required only if custom base clock (not 14745600) installed */
+/*
     	if (set_base_clock(fd, 32000000) < 0) {
     		return rc;
         }
+*/
 
     // get current device parameters
     rc = ioctl(fd, MGSL_IOCGPARAMS, &params);
@@ -183,7 +187,7 @@ int main(int argc, char* argv[]) {
     params.loopback = 0;
     params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
     params.encoding = HDLC_ENCODING_NRZ;
-    params.clock_speed = 0;
+    params.clock_speed = HDLC_FLAG_TXC_BRG;
     params.crc_type = HDLC_CRC_16_CCITT;
     params.preamble = HDLC_PREAMBLE_PATTERN_ONES;               //Remove?
     params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
@@ -217,12 +221,9 @@ int main(int argc, char* argv[]) {
     int enable = 2;                                             //Change to 1?
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-    fp = fopen(writeFiles[fileCount], "wb");
-    if (fp == NULL) {
-		printf("fopen error=%d %s\n", errno, strerror(errno));
-		return errno;
-    }
-    else fileCount++;
+    fp = openFile(writeFiles[fileCount]);
+    
+    fileCount++;
     
     /*crc check setup*/
     rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
@@ -234,15 +235,15 @@ int main(int argc, char* argv[]) {
         
         //printf("print marker 1\n");
         /*check crc*/
-/*
+
         rc = ioctl(fd, MGSL_IOCGSTATS, &icount);                //needed?
         if(crctemp != icount.rxcrc){
             printf("    CRC Failed!\n");
         }
         crctemp = icount.rxcrc;
-*/
+
         /* get received data from serial device */
-        //printf("    marker 4\n");
+        memset(buf, 0, BUFSIZ);
         rc = read(fd, buf, size);
         
         if (rc < 0) {
@@ -274,13 +275,15 @@ int main(int argc, char* argv[]) {
             else {
                 printf("%d total bytes received for file: %s\n", totalFileSize, writeFiles[fileCount - 1]);
                 printf("creating new file %s\n", writeFiles[fileCount]);
+                fflush(fp);
                 fclose(fp);
                 //printf("    marker 1\n");
-                fp = fopen(writeFiles[fileCount], "wb+");
-                //printf("    marker 2\n");
-                totalFileSize = 0;
+                fp = openFile(writeFiles[fileCount]);
                 fileCount++;
+                totalFileSize = 0;
                 index = 0;
+                printf("filePath:%ld     fileCount:%d    totalSize:%d    index:%d\n",(long)(fp), fileCount, totalFileSize, index);
+             
             }
         }
         
@@ -302,7 +305,7 @@ int main(int argc, char* argv[]) {
             index ++;
         }
         //fflush(fp);
-        //usleep(20);
+        usleep(50);
         //printf("    marker 3\n");
     }
 
