@@ -305,7 +305,7 @@ int main(int argc, char* argv[]) {
             index ++;
         }
         //fflush(fp);
-        usleep(50);
+        //usleep(50);
         //printf("    marker 3\n");
     }
 
