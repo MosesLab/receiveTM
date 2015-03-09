@@ -36,6 +36,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <memory.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -105,7 +106,7 @@ int main(int argc, char* argv[]) {
     MGSL_PARAMS params;
     int sigs, idle, errcheck;
     int xml_check1 = 0;
-    char *xml_header;
+    char *xml_header = malloc(sizeof("<ROEIMAGE>"));
     int numImages = 14;
     int fileCount = 0;
     int count = 0;
@@ -219,12 +220,12 @@ int main(int argc, char* argv[]) {
     int enable = 2;
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-    FILE * outxml = fopen("imageindex.xml", "a+");
+    FILE * outxml = openFile("imageindex.xml");
     /* Write XML declaration */
     fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
     fprintf(outxml, "<CATALOG>\n");
     fprintf(outxml, "</CATALOG>\n");
-    if (fp == NULL) {
+    if (outxml == NULL) {
         printf("fopen error=%d %s\n", errno, strerror(errno));
         //return errno;
     }
@@ -300,6 +301,7 @@ int main(int argc, char* argv[]) {
                     if (strcmp(xml_header, "<ROEIMAGE>") == 0) {
                         xml_check2 = 1;
                         xml_check1 = 0;
+                        printf(" packet is an xml \n");
                     }
             }
 
@@ -311,34 +313,39 @@ int main(int argc, char* argv[]) {
                 printf("received %d bytes       %d       [ XML ]\n", rc, index);
                 /* Set the cursor to before </CATALOG>*/
                 fseek(outxml, -11, SEEK_END);
-
-                for (k = 0; k < 19; k++) {
-                    /* Write xml line by line*/
-                    char *line = strtok(buf, "\n");
-
-                    if (line == 0) {
-                        printf("strtok() failed\n");
-                        break;
-                    }
-                    else {
-                        /* save xml update line to file */
-                        count = fwrite(line, sizeof (char), strlen(line), outxml);
-                        if (count != rc) {
-                            printf("fwrite error=%d %s\n", errno, strerror(errno));
-                            break;
-                        }
-                        errcheck = fflush(outxml);
-                        if (errcheck != 0) {
-                            printf("fflush error=%d %s\n", errno, strerror(errno));
-                            return errno;
-                        }
-
-                        fwrite("\n", sizeof ("\n"), 1, outxml);
-                        if (k == 18) fwrite("\n", sizeof ("\n"), 1, outxml);
-                        totalFileSize += count;
-                        index++;
-                    }
-                }
+                
+                count = fwrite(buf, sizeof (char), sizeof(buf), outxml);
+                
+//                for (k = 0; k < 19; k++) {
+//                    // Write xml line by line
+//                    char *line = strtok(buf, "\n");
+//
+//                    if (line == 0) {
+//                        printf("strtok() failed\n");
+//                        break;
+//                    }
+//                    
+//                    else {
+//                        /* save xml update line to file */
+//                        count = fwrite(line, sizeof (char), strlen(line), outxml);
+//                        
+//                        if (count != rc) {
+//                            printf("fwrite error=%d %s\n", errno, strerror(errno));
+//                            break;
+//                        }
+//                        errcheck = fflush(outxml);
+//                        if (errcheck != 0) {
+//                            printf("fflush error=%d %s\n", errno, strerror(errno));
+//                            return errno;
+//                        }
+//
+//                        fprintf(outxml, "\n");
+//                        if (k == 18) fprintf(outxml, "\n");
+//                        totalFileSize += count;
+//                        index++;
+//                    }
+//                }
+            
             }
             else {
                 /* save received data to image file */
