@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
     MGSL_PARAMS params;
     int sigs, idle, errcheck;
     int xml_check1 = 0;
-    char xml_header[10] = "<ROEIMAGE>";
+    char *xml_header;
     int numImages = 14;
     int fileCount = 0;
     int count = 0;
@@ -271,9 +271,9 @@ int main(int argc, char* argv[]) {
                 printf("creating new image buffer\n");
                 fflush(fp);
                 fclose(fp);
-                rename("image0", buf);
+                rename("image_buf", buf);
                 xml_check1 == 1;
-                fp = openFile("image0");
+                fp = openFile("image_buf");
                 fileCount++;
                 totalFileSize = 0;
                 index = 0;
@@ -295,19 +295,12 @@ int main(int argc, char* argv[]) {
             /* Check if packet is an xml update*/
             int k = 0;
             int xml_check2 = 0;
+            strncpy(buf, xml_header, sizeof("<ROEIMAGE>"));
             if (xml_check1 == 1) {
-                for (k = 0; k < 10; k++) {
-                    if (buf[k] == xml_header[k]) {
-                        if (k = 9) {
-                            xml_check2 = 1; /* Definitely an xml */
-                        }
-                        continue;
-                    } else {
+                    if (strcmp(xml_header, "<ROEIMAGE>") == 0) {
+                        xml_check2 = 1;
                         xml_check1 = 0;
-                        break; /* Not an xml */
                     }
-                    
-                }
             }
 
 
@@ -348,7 +341,7 @@ int main(int argc, char* argv[]) {
                 }
             }
             else {
-                /* save received data to file */
+                /* save received data to image file */
                 printf("received %d bytes       %d\n", rc, index);
                 count = fwrite(buf, sizeof (char), rc, fp);
                 if (count != rc) {
