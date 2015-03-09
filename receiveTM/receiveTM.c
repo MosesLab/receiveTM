@@ -83,14 +83,14 @@ int set_base_clock(int fd, unsigned int freq) {
 }
 
 FILE * openFile(char* name) {
-    
+
     FILE *fp = NULL;
     fp = fopen(name, "wb+");
     if (fp == NULL) {
         printf("fopen error=%d %s\n", errno, strerror(errno));
         //return errno;
     }
-    printf("filePath:%ld\n",(long)(fp));
+    printf("filePath:%ld\n", (long) (fp));
     return fp;
 }
 
@@ -104,9 +104,8 @@ int main(int argc, char* argv[]) {
     int ldisc = N_HDLC;
     MGSL_PARAMS params;
     int sigs, idle, errcheck;
-    char * writeFiles[] = {"image0", "xml0", "image1", "xml1", "image2", "xml2", "image3", "xml3","image4","xml4","image5","xml5","image6","xml6"};
-
-    //int numImages = sizeof(writeFiles) / sizeof(char*);
+    int xml_check1 = 0;
+    char xml_header[10] = "<ROEIMAGE>";
     int numImages = 14;
     int fileCount = 0;
     int count = 0;
@@ -119,7 +118,7 @@ int main(int argc, char* argv[]) {
     int runtime_elapsed;
 
     struct mgsl_icount icount;
-    
+
     if (argc > 1)
         devname = argv[1];
     else
@@ -131,15 +130,14 @@ int main(int argc, char* argv[]) {
 
     /* open serial device with O_NONBLOCK to ignore DCD input */
     fd = open(devname, O_RDWR | O_NONBLOCK, 0);
-    
 
-    gettimeofday(&runtime_begin, NULL);                         //Timing
+
+    gettimeofday(&runtime_begin, NULL); //Timing
 
     if (fd < 0) {
         printf("open error=%d %s\n", errno, strerror(errno));
         return errno;
-    }
-    else printf("%s port opened\n", devname);
+    } else printf("%s port opened\n", devname);
 
     /*
      * set N_HDLC line discipline
@@ -148,22 +146,22 @@ int main(int argc, char* argv[]) {
      * and user application that performs intermediate processing,
      * formatting, and buffering of data.
      */
-    rc = ioctl(fd, TIOCSETD, &ldisc);                         //Change to N_TTY?
+    rc = ioctl(fd, TIOCSETD, &ldisc); //Change to N_TTY?
     if (rc < 0) {
         printf("set line discipline error=%d %s\n",
                 errno, strerror(errno));
         return rc;
     }
-    
+
     /*log debugging*/
-    
+
 
     /* required only if custom base clock (not 14745600) installed */
-/*
-    	if (set_base_clock(fd, 32000000) < 0) {
-    		return rc;
-        }
-*/
+    /*
+            if (set_base_clock(fd, 32000000) < 0) {
+                    return rc;
+            }
+     */
 
     // get current device parameters
     rc = ioctl(fd, MGSL_IOCGPARAMS, &params);
@@ -183,13 +181,13 @@ int main(int argc, char* argv[]) {
      * Hardware generation/checking of CCITT (ITU) CRC 16
      */
 
-    params.mode = MGSL_MODE_HDLC;                             //Change to N_TTY?
+    params.mode = MGSL_MODE_HDLC; //Change to N_TTY?
     params.loopback = 0;
     params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
     params.encoding = HDLC_ENCODING_NRZ;
     params.clock_speed = HDLC_FLAG_TXC_BRG;
     params.crc_type = HDLC_CRC_16_CCITT;
-    params.preamble = HDLC_PREAMBLE_PATTERN_ONES;               //Remove?
+    params.preamble = HDLC_PREAMBLE_PATTERN_ONES; //Remove?
     params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
 
     /* set current device parameters */
@@ -218,26 +216,34 @@ int main(int argc, char* argv[]) {
     siginterrupt(SIGINT, 1);
 
     /*enable receiver*/
-    int enable = 2;                                             //Change to 1?
+    int enable = 2;
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-    fp = openFile(writeFiles[fileCount]);
-    
+    FILE * outxml = fopen("imageindex.xml", "a+");
+    /* Write XML declaration */
+    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+    fprintf(outxml, "<CATALOG>\n");
+    fprintf(outxml, "</CATALOG>\n");
+    if (fp == NULL) {
+        printf("fopen error=%d %s\n", errno, strerror(errno));
+        //return errno;
+    }
+
+    fp = openFile("image_buf");
+
     fileCount++;
-    
+
     /*crc check setup*/
     rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
     __u32 crctemp = icount.rxcrc;
 
-    int index = 0;      //line counter to verify data is still being sent
+    int index = 0; //line counter to verify data is still being sent
 
     for (;;) {
-        
-        //printf("print marker 1\n");
         /*check crc*/
 
-        rc = ioctl(fd, MGSL_IOCGSTATS, &icount);                //needed?
-        if(crctemp != icount.rxcrc){
+        rc = ioctl(fd, MGSL_IOCGSTATS, &icount); //needed?
+        if (crctemp != icount.rxcrc) {
             printf("    CRC Failed!\n");
         }
         crctemp = icount.rxcrc;
@@ -245,68 +251,120 @@ int main(int argc, char* argv[]) {
         /* get received data from serial device */
         memset(buf, 0, BUFSIZ);
         rc = read(fd, buf, size);
-        
+
         if (rc < 0) {
             printf("read error=%d %s\n", errno, strerror(errno));
             break;
         }
-
         else if (rc == 0) {
             gettimeofday(&runtime_end, NULL); //Timing
-	    runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
-	    printf("program ran for %-3.2f seconds before failing\n", (float) runtime_elapsed / (float) 1000000);
-	    printf("read returned with no data - set NONBLOCK mode to continue\n");
+            runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
+            printf("program ran for %-3.2f seconds before failing\n", (float) runtime_elapsed / (float) 1000000);
+            printf("read returned with no data - set NONBLOCK mode to continue\n");
             break;
         }
-        
-        else if (rc == 5) {
-            
-            printf("received %d bytes       %d\n", rc, index);
-                /*check if we need to start new file*/
-	    if (fileCount == numImages){
-                 /*all done*/
-                 printf("Finished %d files \n",fileCount);
-                 gettimeofday(&runtime_end, NULL); //Timing
-                 runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
-                 printf("program ran for %-3.2f seconds total\n", (float) runtime_elapsed / (float) 1000000);
-                  
-                 fileCount = 0;
-            }
-            else {
-                printf("%d total bytes received for file: %s\n", totalFileSize, writeFiles[fileCount - 1]);
-                printf("creating new file %s\n", writeFiles[fileCount]);
+        else if (rc == 16 || rc == 14) {
+            printf("received %d bytes       %d       [ TERM ]\n", rc, index);
+
+            if (rc == 16) {
+                printf("%d total bytes received for file: %s\n", totalFileSize, buf);
+                printf("creating new image buffer\n");
                 fflush(fp);
                 fclose(fp);
-                //printf("    marker 1\n");
-                fp = openFile(writeFiles[fileCount]);
+                rename("image0", buf);
+                xml_check1 == 1;
+                fp = openFile("image0");
                 fileCount++;
                 totalFileSize = 0;
                 index = 0;
-                printf("filePath:%ld     fileCount:%d    totalSize:%d    index:%d\n",(long)(fp), fileCount, totalFileSize, index);
-             
+                printf("filePath:%ld     fileCount:%d    totalSize:%d    index:%d\n", (long) (fp), fileCount, totalFileSize, index);
             }
+            else {
+                printf("%d total bytes received for updating xml\n", totalFileSize);
+                fflush(outxml);
+                xml_check1 = 0;
+                totalFileSize = 0;
+                index = 0;
+            }
+
+
+
         }
-        
+
         else {
-            /* save received data to file */
-            printf("received %d bytes       %d\n", rc, index);
-	    count = fwrite(buf, sizeof(char), rc, fp);
-            if (count != rc) {
-                printf("fwrite error=%d %s\n", errno, strerror(errno));
-                break;
+            /* Check if packet is an xml update*/
+            int k = 0;
+            int xml_check2 = 0;
+            if (xml_check1 == 1) {
+                for (k = 0; k < 10; k++) {
+                    if (buf[k] == xml_header[k]) {
+                        if (k = 9) {
+                            xml_check2 = 1; /* Definitely an xml */
+                        }
+                        continue;
+                    } else {
+                        xml_check1 = 0;
+                        break; /* Not an xml */
+                    }
+                    
+                }
             }
-            errcheck = fflush(fp);
-            //tcdrain(fp);                                      //not for streams
-            if (errcheck != 0){
-                printf("fflush error=%d %s\n", errno, strerror(errno));
-		return errno;
+
+
+
+            if (xml_check2) {
+
+                /* append received update to disk */
+                printf("received %d bytes       %d       [ XML ]\n", rc, index);
+                /* Set the cursor to before </CATALOG>*/
+                fseek(outxml, -11, SEEK_END);
+
+                for (k = 0; k < 19; k++) {
+                    /* Write xml line by line*/
+                    char *line = strtok(buf, "\n");
+
+                    if (line == 0) {
+                        printf("strtok() failed\n");
+                        break;
+                    }
+                    else {
+                        /* save xml update line to file */
+                        count = fwrite(line, sizeof (char), strlen(line), outxml);
+                        if (count != rc) {
+                            printf("fwrite error=%d %s\n", errno, strerror(errno));
+                            break;
+                        }
+                        errcheck = fflush(outxml);
+                        if (errcheck != 0) {
+                            printf("fflush error=%d %s\n", errno, strerror(errno));
+                            return errno;
+                        }
+
+                        fwrite("\n", sizeof ("\n"), 1, outxml);
+                        if (k == 18) fwrite("\n", sizeof ("\n"), 1, outxml);
+                        totalFileSize += count;
+                        index++;
+                    }
+                }
             }
-            totalFileSize += count;
-            index ++;
+            else {
+                /* save received data to file */
+                printf("received %d bytes       %d\n", rc, index);
+                count = fwrite(buf, sizeof (char), rc, fp);
+                if (count != rc) {
+                    printf("fwrite error=%d %s\n", errno, strerror(errno));
+                    break;
+                }
+                errcheck = fflush(fp);
+                if (errcheck != 0) {
+                    printf("fflush error=%d %s\n", errno, strerror(errno));
+                    return errno;
+                }
+
+                totalFileSize += count;
+                index++;
+            }
         }
-        //fflush(fp);
-        //usleep(50);
-        //printf("    marker 3\n");
     }
 
 
