@@ -106,10 +106,12 @@ int main(int argc, char* argv[]) {
     int ldisc = N_HDLC;
     MGSL_PARAMS params;
     int sigs, idle, errcheck;
-    int xml_check3 = 0;
-    char *xml_header = malloc(strlen("<ROEIMAGE>") + 1);
+    char *xml_header = malloc(strlen("<?xml version=") + 1);
+    char *current_xml = "/dataoutput/imageindex.xml";
+    char *archive_xml = malloc(strlen("/dataoutput/imageindex_") + 1);
     int numImages = 14;
     int fileCount = 0;
+    int xmlCount = 0;
     int count = 0;
     int totalFileSize = 0;
     unsigned char buf[BUFSIZ];
@@ -222,14 +224,10 @@ int main(int argc, char* argv[]) {
     int enable = 2;
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-    outxml = fopen("/data_output/imageindex.xml","w+");
-    if (outxml == NULL) {
-        printf("fopen error=%d %s\n", errno, strerror(errno));
-        //return errno;
-    }
+    outxml = openFile("/data_output/imageindex.xml");
     /* Write XML declaration */
-    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-    fprintf(outxml, "<CATALOG>\n");
+    //fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+    //fprintf(outxml, "<CATALOG>\n");
     
     fp = openFile("/data_output/image_buf");
 
@@ -280,60 +278,48 @@ int main(int argc, char* argv[]) {
             fileCount++;
             totalFileSize = 0;
             index = 0;
-            printf("filePath:%ld     fileCount:%d    totalSize:%d    index:%d\n", (long) (fp), fileCount, totalFileSize, index);
         }
         else if (rc == 14){
             /*Terminating characters for xml*/    
             printf("received %d bytes       %d       [ TERM ]\n", rc, index);
             printf("%d total bytes received for updating xml\n", totalFileSize);
+            printf("creating new xml buffer\n");
             
-            fprintf(outxml, "</CATALOG>");
             fflush(outxml);
+            fclose(outxml);
+            sprintf(archive_xml, "/dataoutput/old_indeces/imageindex_%d%s", xmlCount, ".xml");
+            rename(current_xml, archive_xml);
+            outxml = openFile(current_xml);
 
-            xml_check3 = 1; //Create new xml
+            xmlCount++;
             totalFileSize = 0;
             index = 0;
         }
         else {
             /* check if the first few characters look like an xml */
-            int k = 0;
-            int xml_check2 = 0;
-            strncpy(xml_header, buf, (strlen("<ROEIMAGE>") + 1));
-
-            printf("xml_check2 = %d\n", xml_check2);
-            printf("xml_check3 = %d\n", xml_check3);
-
-            int cmp = strncmp(xml_header, "<ROEIMAGE>", 10 * sizeof (char));
-            printf("cmp = %d\n", cmp);
+            int xml_check = 0;
+            strncpy(xml_header, buf, (strlen("<?xml version=") + 1));
+            int cmp = strncmp(xml_header, "<?xml version=", 13 * sizeof (char));
             if (cmp == 0) {
-                xml_check2 = 1;
+                xml_check = 1;
                 printf(" packet is an xml \n");
             }
             
-            if (xml_check2 == 1) {
+            printf("xml_check = %d\n", xml_check);
+            if (xml_check == 1) {
                 /* must be an xml */
-                if (xml_check3 == 1) {
-                    /* We need a new xml */
-                    outxml = fopen("/data_output/imageindex.xml","w+");
-                    if (outxml == NULL) {
-                        printf("fopen error=%d %s\n", errno, strerror(errno));
-                        //return errno;
-                    }
-                    /* Write XML declaration */
-                    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-                    fprintf(outxml, "<CATALOG>\n");
-                    xml_check3 = 0;
-                }
+                /* write new received xml to disk */
                 
-                /* append received update to disk */
                 printf("received %d bytes       %d       [ XML ]\n", rc, index);
                 count = fwrite(buf, sizeof (char), strlen(buf), outxml);
                 fprintf(outxml, "\n");
             }
+            
             else {
                 /* save received data to image file */
                 printf("received %d bytes       %d\n", rc, index);
                 count = fwrite(buf, sizeof (char), rc, fp);
+                
                 if (count != rc) {
                     printf("fwrite error=%d %s\n", errno, strerror(errno));
                     break;
