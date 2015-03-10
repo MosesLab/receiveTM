@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
     MGSL_PARAMS params;
     int sigs, idle, errcheck;
     int xml_check1 = 1;
-    int xml_check3 = 1;
+    int xml_check3 = 0;
     char *xml_header = malloc(strlen("<ROEIMAGE>") + 1);
     int numImages = 14;
     int fileCount = 0;
@@ -223,14 +223,14 @@ int main(int argc, char* argv[]) {
     int enable = 2;
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-//    FILE * outxml = fopen("imageindex.xml","w");
-//    if (outxml == NULL) {
-//        printf("fopen error=%d %s\n", errno, strerror(errno));
-//        //return errno;
-//    }
-//    /* Write XML declaration */
-//    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-//    fprintf(outxml, "<CATALOG>\n");
+    outxml = fopen("imageindex.xml","w");
+    if (outxml == NULL) {
+        printf("fopen error=%d %s\n", errno, strerror(errno));
+        //return errno;
+    }
+    /* Write XML declaration */
+    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+    fprintf(outxml, "<CATALOG>\n");
     
 
     fp = openFile("image_buf");
@@ -286,10 +286,9 @@ int main(int argc, char* argv[]) {
         else if (rc == 14){
                 printf("received %d bytes       %d       [ TERM ]\n", rc, index);
                 printf("%d total bytes received for updating xml\n", totalFileSize);
-                fprintf(outxml, "</CATALOG>");
+                fprintf(outxml, "\n</CATALOG>");
                 fflush(outxml);
                 
-                xml_check1 = 0;
                 xml_check3 = 1; //Create new xml
                 totalFileSize = 0;
                 index = 0;
@@ -300,12 +299,13 @@ int main(int argc, char* argv[]) {
             int k = 0;
             int xml_check2 = 0;
             strncpy(xml_header, buf, (strlen("<ROEIMAGE>") + 1));
-            printf("xml_header = %s\n", xml_header);
+            
             printf("xml_check1 = %d\n", xml_check1);
+            printf("xml_check2 = %d\n", xml_check2);
+            printf("xml_check3 = %d\n", xml_check3);
             
             /*check if last file received was an image*/
             if (xml_check1 == 1) {
-                printf("check1 is TRUE\n");
                 int cmp = strncmp(xml_header, "<ROEIMAGE>", 10 * sizeof(char));
                 printf("cmp = %d\n",cmp);
                 if (cmp == 0) {
@@ -329,6 +329,7 @@ int main(int argc, char* argv[]) {
                     /* Write XML declaration */
                     fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
                     fprintf(outxml, "<CATALOG>\n");
+                    xml_check3 = 0;
                 }
                 
                 
