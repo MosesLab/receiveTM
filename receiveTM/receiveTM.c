@@ -91,7 +91,7 @@ FILE * openFile(char* name) {
         printf("fopen error=%d %s\n", errno, strerror(errno));
         //return errno;
     }
-    printf("filePath:%ld\n", (long) (fp));
+    //printf("filePath:%ld\n", (long) (fp));
     return fp;
 }
 
@@ -105,8 +105,8 @@ int main(int argc, char* argv[]) {
     int ldisc = N_HDLC;
     MGSL_PARAMS params;
     int sigs, idle, errcheck;
-    int xml_check1 = 0;
-    char *xml_header = malloc(sizeof("<ROEIMAGE>"));
+    int xml_check1 = 1;
+    char *xml_header = malloc(strlen("<ROEIMAGE>") + 1);
     int numImages = 14;
     int fileCount = 0;
     int count = 0;
@@ -114,6 +114,7 @@ int main(int argc, char* argv[]) {
     unsigned char buf[BUFSIZ];
     size_t size = BUFSIZ;
     char *devname;
+    char *xml_name;
 
     struct timeval runtime_begin, runtime_end;
     int runtime_elapsed;
@@ -132,7 +133,7 @@ int main(int argc, char* argv[]) {
     /* open serial device with O_NONBLOCK to ignore DCD input */
     fd = open(devname, O_RDWR | O_NONBLOCK, 0);
 
-
+    
     gettimeofday(&runtime_begin, NULL); //Timing
 
     if (fd < 0) {
@@ -221,14 +222,15 @@ int main(int argc, char* argv[]) {
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
     FILE * outxml = openFile("imageindex.xml");
-    /* Write XML declaration */
-    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-    fprintf(outxml, "<CATALOG>\n");
-    fprintf(outxml, "</CATALOG>\n");
     if (outxml == NULL) {
         printf("fopen error=%d %s\n", errno, strerror(errno));
         //return errno;
     }
+    /* Write XML declaration */
+    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+    fprintf(outxml, "<CATALOG>\n");
+    fprintf(outxml, "</CATALOG>\n");
+    
 
     fp = openFile("image_buf");
 
@@ -296,7 +298,8 @@ int main(int argc, char* argv[]) {
             /* Check if packet is an xml update*/
             int k = 0;
             int xml_check2 = 0;
-            strncpy(buf, xml_header, sizeof("<ROEIMAGE>"));
+            strncpy(xml_header, buf, (strlen("<ROEIMAGE>") + 1));
+            printf("xml_header = %s\n", xml_header);
             if (xml_check1 == 1) {
                     if (strcmp(xml_header, "<ROEIMAGE>") == 0) {
                         xml_check2 = 1;
@@ -307,7 +310,7 @@ int main(int argc, char* argv[]) {
 
 
 
-            if (xml_check2) {
+            if (xml_check2 == 1) {
 
                 /* append received update to disk */
                 printf("received %d bytes       %d       [ XML ]\n", rc, index);
