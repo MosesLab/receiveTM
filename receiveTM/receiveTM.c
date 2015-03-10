@@ -273,7 +273,7 @@ int main(int argc, char* argv[]) {
             
             fflush(fp);
             fclose(fp);
-            int sprintf(buf, "/data_output/%s", buf);
+            sprintf(buf, "/data_output/%s", buf);
             rename("/data_output/image_buf", buf);
             fp = openFile("/data_output/image_buf");
 
