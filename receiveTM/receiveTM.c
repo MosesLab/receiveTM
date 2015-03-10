@@ -102,10 +102,12 @@ void sigint_handler(int sigid) {
 int main(int argc, char* argv[]) {
     int fd, rc;
     FILE *fp = NULL;
+    FILE *outxml = NULL;
     int ldisc = N_HDLC;
     MGSL_PARAMS params;
     int sigs, idle, errcheck;
     int xml_check1 = 1;
+    int xml_check3 = 1;
     char *xml_header = malloc(strlen("<ROEIMAGE>") + 1);
     int numImages = 14;
     int fileCount = 0;
@@ -221,15 +223,14 @@ int main(int argc, char* argv[]) {
     int enable = 2;
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
 
-    FILE * outxml = openFile("imageindex.xml");
-    if (outxml == NULL) {
-        printf("fopen error=%d %s\n", errno, strerror(errno));
-        //return errno;
-    }
-    /* Write XML declaration */
-    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-    fprintf(outxml, "<CATALOG>\n");
-    fprintf(outxml, "</CATALOG>\n");
+//    FILE * outxml = fopen("imageindex.xml","w");
+//    if (outxml == NULL) {
+//        printf("fopen error=%d %s\n", errno, strerror(errno));
+//        //return errno;
+//    }
+//    /* Write XML declaration */
+//    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+//    fprintf(outxml, "<CATALOG>\n");
     
 
     fp = openFile("image_buf");
@@ -266,10 +267,9 @@ int main(int argc, char* argv[]) {
             printf("read returned with no data - set NONBLOCK mode to continue\n");
             break;
         }
-        else if (rc == 16 || rc == 14) {
+        else if (rc == 16) {
             printf("received %d bytes       %d       [ TERM ]\n", rc, index);
 
-            if (rc == 16) {
                 printf("%d total bytes received for file: %s\n", totalFileSize, buf);
                 printf("creating new image buffer\n");
                 fflush(fp);
@@ -277,21 +277,22 @@ int main(int argc, char* argv[]) {
                 rename("image_buf", buf);
                 xml_check1 == 1;
                 fp = openFile("image_buf");
+                
                 fileCount++;
                 totalFileSize = 0;
                 index = 0;
                 printf("filePath:%ld     fileCount:%d    totalSize:%d    index:%d\n", (long) (fp), fileCount, totalFileSize, index);
-            }
-            else {
+        }
+        else if (rc == 14){
+                printf("received %d bytes       %d       [ TERM ]\n", rc, index);
                 printf("%d total bytes received for updating xml\n", totalFileSize);
+                fprintf(outxml, "</CATALOG>");
                 fflush(outxml);
+                
                 xml_check1 = 0;
+                xml_check3 = 1; //Create new xml
                 totalFileSize = 0;
                 index = 0;
-            }
-
-
-
         }
 
         else {
@@ -300,55 +301,44 @@ int main(int argc, char* argv[]) {
             int xml_check2 = 0;
             strncpy(xml_header, buf, (strlen("<ROEIMAGE>") + 1));
             printf("xml_header = %s\n", xml_header);
+            printf("xml_check1 = %d\n", xml_check1);
+            
+            /*check if last file received was an image*/
             if (xml_check1 == 1) {
-                    if (strcmp(xml_header, "<ROEIMAGE>") == 0) {
+                printf("check1 is TRUE\n");
+                int cmp = strncmp(xml_header, "<ROEIMAGE>", 10 * sizeof(char));
+                printf("cmp = %d\n",cmp);
+                if (cmp == 0) {
                         xml_check2 = 1;
-                        xml_check1 = 0;
                         printf(" packet is an xml \n");
-                    }
+                }
+                else xml_check1 = 0;
             }
 
 
 
             if (xml_check2 == 1) {
-
+                
+                if (xml_check3 == 1) {                  
+                    /*check if its time to replace xml*/
+                    outxml = fopen("imageindex.xml","w");
+                    if (outxml == NULL) {
+                        printf("fopen error=%d %s\n", errno, strerror(errno));
+                        //return errno;
+                    }
+                    /* Write XML declaration */
+                    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+                    fprintf(outxml, "<CATALOG>\n");
+                }
+                
+                
                 /* append received update to disk */
                 printf("received %d bytes       %d       [ XML ]\n", rc, index);
                 /* Set the cursor to before </CATALOG>*/
                 fseek(outxml, -11, SEEK_END);
                 
-                count = fwrite(buf, sizeof (char), sizeof(buf), outxml);
-                
-//                for (k = 0; k < 19; k++) {
-//                    // Write xml line by line
-//                    char *line = strtok(buf, "\n");
-//
-//                    if (line == 0) {
-//                        printf("strtok() failed\n");
-//                        break;
-//                    }
-//                    
-//                    else {
-//                        /* save xml update line to file */
-//                        count = fwrite(line, sizeof (char), strlen(line), outxml);
-//                        
-//                        if (count != rc) {
-//                            printf("fwrite error=%d %s\n", errno, strerror(errno));
-//                            break;
-//                        }
-//                        errcheck = fflush(outxml);
-//                        if (errcheck != 0) {
-//                            printf("fflush error=%d %s\n", errno, strerror(errno));
-//                            return errno;
-//                        }
-//
-//                        fprintf(outxml, "\n");
-//                        if (k == 18) fprintf(outxml, "\n");
-//                        totalFileSize += count;
-//                        index++;
-//                    }
-//                }
-            
+                count = fwrite(buf, sizeof (char), strlen(buf), outxml);
+                fprintf(outxml, "\n");
             }
             else {
                 /* save received data to image file */
