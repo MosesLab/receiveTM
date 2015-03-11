@@ -68,30 +68,15 @@
  * configuration with the actual value so correct divisors are used for
  * a specified data rate.
  */
-int set_base_clock(int fd, unsigned int freq) {
-    MGSL_PARAMS params;
-    int rc;
-
-    /* fields other than mode and clock_speed are ignored */
-    params.mode = MGSL_MODE_BASE_CLOCK;
-    params.clock_speed = freq;
-    rc = ioctl(fd, MGSL_IOCSPARAMS, &params);
-    if (rc < 0) {
-        printf("set base clock frequency error=%d %s\n",
-                errno, strerror(errno));
-    }
-    return rc;
-}
 
 FILE * openFile(char* name) {
 
     FILE *fp = NULL;
-    fp = fopen(name, "wb+");
+    fp = fopen(name, "w+");
     if (fp == NULL) {
-        printf("fopen error=%d %s\n", errno, strerror(errno));
-        //return errno;
+        printf("fopen error = %d %s\n", errno, strerror(errno));
     }
-    //printf("filePath:%ld\n", (long) (fp));
+    printf("filepath = %s", (char*) fp);
     return fp;
 }
 
@@ -105,23 +90,22 @@ int main(int argc, char* argv[]) {
     FILE *outxml = NULL;
     int ldisc = N_HDLC;
     MGSL_PARAMS params;
-    int sigs, idle, errcheck;
-    char *xml_header = malloc(strlen("<?xml version=") + 1);
-    char *current_xml = "/dataoutput/imageindex.xml";
-    char *archive_xml = malloc(strlen("/dataoutput/imageindex_") + 1);
+    int sigs, errcheck;
+    char *xml_header = malloc(strlen("<ROEIMAGE>") + 1);
+    char *archive_file = malloc(strlen("./data_output/old_xml/imageindex_000.xml") + 1);
+    char *current_xml = "./data_output/imageindex.xml";
+    char *image_path = "./data_output/image_buf.tmp";
     int numImages = 14;
     int fileCount = 0;
     int xmlCount = 0;
+    int xml_check = 1;
     int count = 0;
     int totalFileSize = 0;
     unsigned char buf[BUFSIZ];
     size_t size = BUFSIZ;
     char *devname;
-    char *xml_name;
-
     struct timeval runtime_begin, runtime_end;
     int runtime_elapsed;
-
     struct mgsl_icount icount;
 
     if (argc > 1)
@@ -132,12 +116,11 @@ int main(int argc, char* argv[]) {
     printf("receive HDLC data on %s\n", devname);
     printf("receiving/writing %d files\n", numImages);
 
-
     /* open serial device with O_NONBLOCK to ignore DCD input */
     fd = open(devname, O_RDWR | O_NONBLOCK, 0);
-
     
-    gettimeofday(&runtime_begin, NULL); //Timing
+    /* Timing */
+    gettimeofday(&runtime_begin, NULL);
 
     if (fd < 0) {
         printf("open error=%d %s\n", errno, strerror(errno));
@@ -157,10 +140,7 @@ int main(int argc, char* argv[]) {
                 errno, strerror(errno));
         return rc;
     }
-
-    /*log debugging*/
-
-
+    
     /* required only if custom base clock (not 14745600) installed */
     /*
             if (set_base_clock(fd, 32000000) < 0) {
@@ -168,14 +148,13 @@ int main(int argc, char* argv[]) {
             }
      */
 
-    // get current device parameters
+    /* get current device parameters */
     rc = ioctl(fd, MGSL_IOCGPARAMS, &params);
     if (rc < 0) {
         printf("ioctl(MGSL_IOCGPARAMS) error=%d %s\n",
                 errno, strerror(errno));
         return rc;
     }
-
 
     /*
      * modify device parameters
@@ -186,13 +165,13 @@ int main(int argc, char* argv[]) {
      * Hardware generation/checking of CCITT (ITU) CRC 16
      */
 
-    params.mode = MGSL_MODE_HDLC; //Change to N_TTY?
+    params.mode = MGSL_MODE_HDLC;
     params.loopback = 0;
     params.flags = HDLC_FLAG_RXC_RXCPIN + HDLC_FLAG_TXC_TXCPIN;
     params.encoding = HDLC_ENCODING_NRZ;
     params.clock_speed = HDLC_FLAG_TXC_BRG;
     params.crc_type = HDLC_CRC_16_CCITT;
-    params.preamble = HDLC_PREAMBLE_PATTERN_ONES; //Remove?
+    params.preamble = HDLC_PREAMBLE_PATTERN_ONES;
     params.preamble_length = HDLC_PREAMBLE_LENGTH_16BITS;
 
     /* set current device parameters */
@@ -202,7 +181,6 @@ int main(int argc, char* argv[]) {
                 errno, strerror(errno));
         return rc;
     }
-
 
     printf("Turn on RTS and DTR serial outputs\n");
     sigs = TIOCM_RTS | TIOCM_DTR;
@@ -223,13 +201,8 @@ int main(int argc, char* argv[]) {
     /*enable receiver*/
     int enable = 2;
     rc = ioctl(fd, MGSL_IOCRXENABLE, enable);
-
-    outxml = openFile("/data_output/imageindex.xml");
-    /* Write XML declaration */
-    //fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-    //fprintf(outxml, "<CATALOG>\n");
     
-    fp = openFile("/data_output/image_buf");
+    fp = openFile(image_path);
 
     fileCount++;
 
@@ -271,9 +244,9 @@ int main(int argc, char* argv[]) {
             
             fflush(fp);
             fclose(fp);
-            sprintf(buf, "/data_output/%s", buf);
-            rename("/data_output/image_buf", buf);
-            fp = openFile("/data_output/image_buf");
+            sprintf(archive_file, "./data_output/%s", buf);
+            rename(image_path, archive_file);
+            fp = openFile(image_path);
 
             fileCount++;
             totalFileSize = 0;
@@ -283,36 +256,56 @@ int main(int argc, char* argv[]) {
             /*Terminating characters for xml*/    
             printf("received %d bytes       %d       [ TERM ]\n", rc, index);
             printf("%d total bytes received for updating xml\n", totalFileSize);
-            printf("creating new xml buffer\n");
             
-            fflush(outxml);
-            fclose(outxml);
-            sprintf(archive_xml, "/dataoutput/old_indeces/imageindex_%d%s", xmlCount, ".xml");
-            rename(current_xml, archive_xml);
-            outxml = openFile(current_xml);
-
-            xmlCount++;
+            fprintf(outxml, "</CATALOG>\n");
+            
+            xml_check = 1; // Warn myself that the next xml packet will require a new archive
             totalFileSize = 0;
             index = 0;
         }
         else {
-            /* check if the first few characters look like an xml */
-            int xml_check = 0;
-            strncpy(xml_header, buf, (strlen("<?xml version=") + 1));
-            int cmp = strncmp(xml_header, "<?xml version=", 13 * sizeof (char));
-            if (cmp == 0) {
-                xml_check = 1;
-                printf(" packet is an xml \n");
-            }
             
-            printf("xml_check = %d\n", xml_check);
-            if (xml_check == 1) {
-                /* must be an xml */
-                /* write new received xml to disk */
+            /* check if the first few characters look like an xml */
+            strncpy(xml_header, buf, (strlen("<ROEIMAGE>")));
+            int cmp = strncmp(xml_header, "<ROEIMAGE>", 10 * sizeof(char));
+            if (cmp == 0) {
+                printf("xml_header = %s\n", xml_header);
+                printf("packet is an xml \n");
+                
+                /* check if it's time to archive current xml*/
+                if (xml_check == 1) {
+                    printf("creating new xml buffer\n");
+                    fclose(outxml);
+                    sprintf(archive_file, "./data_output/old_xml/imageindex_%d%s", xmlCount, ".xml");
+                    rename(current_xml, archive_file);
+                    outxml = openFile(current_xml);
+
+                    /* Write XML declaration */
+                    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+                    fprintf(outxml, "<CATALOG>\n");
+                    fprintf(outxml, "\n");
+
+                    xmlCount++;
+                    xml_check = 0;
+                }
                 
                 printf("received %d bytes       %d       [ XML ]\n", rc, index);
+                
+                /* must be an xml */
+                /* write new received xml to disk */
                 count = fwrite(buf, sizeof (char), strlen(buf), outxml);
+                if (count != rc) {
+                    printf("fwrite error=%d %s\n", errno, strerror(errno));
+                    break;
+                }
+                if (fflush(fp) != 0) {
+                    printf("fflush error=%d %s\n", errno, strerror(errno));
+                    return errno;
+                }
+                
                 fprintf(outxml, "\n");
+                totalFileSize += count;
+                index++;
             }
             
             else {
@@ -324,6 +317,7 @@ int main(int argc, char* argv[]) {
                     printf("fwrite error=%d %s\n", errno, strerror(errno));
                     break;
                 }
+                errcheck = fflush(NULL); //flushes all possible streams
                 errcheck = fflush(fp);
                 if (errcheck != 0) {
                     printf("fflush error=%d %s\n", errno, strerror(errno));
@@ -335,9 +329,7 @@ int main(int argc, char* argv[]) {
             }
         }
     }
-
-
-
+    
     printf("Turn off RTS and DTR serial outputs\n");
     sigs = TIOCM_RTS + TIOCM_DTR;
     rc = ioctl(fd, TIOCMBIC, &sigs);
