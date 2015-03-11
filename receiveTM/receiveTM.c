@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
     MGSL_PARAMS params;
     int sigs, errcheck;
     char *xml_header = malloc(strlen("<ROEIMAGE>") + 1);
-    char *archive_file = malloc(strlen("./data_output/old_xml/imageindex_000.xml") + 1);
+    char *archive_file = malloc(strlen("./data_output/xml_archive/imageindex_000.xml") + 1);
     char *current_xml = "./data_output/imageindex.xml";
     char *image_path = "./data_output/image_buf.tmp";
     int numImages = 14;
@@ -276,7 +276,7 @@ int main(int argc, char* argv[]) {
                 if (xml_check == 1) {
                     printf("creating new xml buffer\n");
                     fclose(outxml);
-                    sprintf(archive_file, "./data_output/old_xml/imageindex_%d%s", xmlCount, ".xml");
+                    sprintf(archive_file, "./data_output/xml_archive/imageindex_%d%s", xmlCount, ".xml");
                     rename(current_xml, archive_file);
                     outxml = openFile(current_xml);
 
