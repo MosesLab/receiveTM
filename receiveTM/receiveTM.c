@@ -1,4 +1,4 @@
-/*********************************************************************
+/*******************************************************************************
  *
  *               MOSES telemetry ground station code
  *                     Montana State University
@@ -12,6 +12,7 @@
  *                 An index of received data will be stored at ./imageindex.xml
  *                 and archived periodically into sub-folder: /xml_archive/
  * 
+ *                 This program requires synclink.h header provided by Microgate.
  *                 This program requires that ./mgslutil be run to configure 
  *                 the Synclink device*: ./mgslutil rs422 [path/to/device] 
  *                     *This is performed by ./synclink_init.sh bash scipt
@@ -29,7 +30,7 @@
  *                 int main(int, char*)     - Contains initialization/read/write
  * Authors(s)    : Jackson Remington, Roy Smart, Jake Plovanic
  * Date          : Updated 03/12/15
- *********************************************************************/
+ ******************************************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
