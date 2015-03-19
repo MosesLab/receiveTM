@@ -57,13 +57,13 @@
 /* Handles stream opens and errors*/
 FILE * openFile(char* name) {
 
-    FILE *fp = NULL;
-    fp = fopen(name, "w+");
-    if (fp == NULL) {
+    FILE *file;
+    file = fopen(name, "wb+");
+    if (file == NULL) {
         printf("fopen error = %d %s\n", errno, strerror(errno));
     }
-    printf("filepath = %s", (char*) fp);
-    return fp;
+    /*printf("filepath = %d\n", (int) file);*/
+    return file;
 }
 
 /* handle SIGINT - do nothing */
@@ -80,15 +80,15 @@ int main(int argc, char* argv[]) {
     int sigs, errcheck;
     int numImages      = 14;
     int xmlCount       = 0;
-    int xml_check      = 1;
+    int xml_check      = 0;
     int count          = 0;
     int totalFileSize  = 0;
     int index          = 0;
     int ldisc          = N_HDLC;
     char *xml_header   = malloc(strlen("<ROEIMAGE>") + 1);
-    char *archive_file = malloc(strlen("./data_output/xml_archive/imageindex_000.xml") + 1);
-    char *current_xml  = "./data_output/imageindex.xml";
-    char *image_path   = "./data_output/image_buf.tmp";
+    char *archive_file = malloc(strlen("/home/moses/TM_data/xml_archive/imageindex_000.xml") + 1);
+    char *current_xml  = "/home/moses/TM_data/imageindex.xml";
+    char *image_path   = "/home/moses/TM_data/image_buf.tmp";
     char *devname;
     unsigned char buf[BUFSIZ];
     MGSL_PARAMS params;
@@ -192,6 +192,14 @@ int main(int argc, char* argv[]) {
     
     /* Prepare image buffer/file pointer */
     fp = openFile(image_path);
+    
+    /* Prepare xml buffer/file pointer */
+    outxml = openFile(current_xml);
+    /* Write XML declaration/header */
+    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+    fprintf(outxml, "<CATALOG>\n");
+    fprintf(outxml, "\n");
+    xmlCount++;
 
 /*********************************************************************************                           
 *                              MAIN TELEMETRY LOOP
@@ -266,7 +274,7 @@ int main(int argc, char* argv[]) {
                 if (xml_check == 1) {
                     printf("creating new xml buffer\n");
                     fclose(outxml);
-                    sprintf(archive_file, "./data_output/xml_archive/imageindex_%d%s", xmlCount, ".xml");
+                    sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%d%s", xmlCount, ".xml");
                     rename(current_xml, archive_file);
                     outxml = openFile(current_xml);
 
@@ -328,5 +336,6 @@ int main(int argc, char* argv[]) {
 
     close(fd);
     fclose(fp);
+    fclose(outxml);
     return 0;
 }
