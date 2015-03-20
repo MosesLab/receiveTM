@@ -239,8 +239,9 @@ int main(int argc, char* argv[]) {
             /* Flush the stream, save the image, free up the buffer*/
             fflush(fp);
             fclose(fp);
-            sprintf(archive_file, "./data_output/%s", buf);
+            sprintf(archive_file, "/home/moses/TM_data/%s", buf);
             rename(image_path, archive_file);
+            free(archive_file);
             fp = openFile(image_path);
 
             totalFileSize = 0;
@@ -276,6 +277,7 @@ int main(int argc, char* argv[]) {
                     fclose(outxml);
                     sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%d%s", xmlCount, ".xml");
                     rename(current_xml, archive_file);
+                    free(archive_file);
                     outxml = openFile(current_xml);
 
                     /* Write XML declaration/header */
