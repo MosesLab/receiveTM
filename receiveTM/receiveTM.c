@@ -43,6 +43,7 @@
 #include <termios.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/statvfs.h>
 
 #include "synclink.h"
 
@@ -96,6 +97,10 @@ int main(int argc, char* argv[]) {
     struct mgsl_icount icount;
     struct timeval runtime_begin, runtime_end;
     int runtime_elapsed;
+    
+    /*disk check debug stuff*/
+    unsigned long free_disk;
+    struct statvfs * disk_info = malloc(sizeof(statvfs));
 
     /* Run device with arguments to force device selection */
     if (argc > 1)
@@ -211,7 +216,7 @@ int main(int argc, char* argv[]) {
             printf("    CRC Failed!\n");
         }
         crctemp = icount.rxcrc;
-
+        
         /* wait for and receive data from serial device */
         memset(buf, 0, BUFSIZ);
         rc = read(fd, buf, size);
@@ -292,7 +297,7 @@ int main(int argc, char* argv[]) {
                 printf("received %d bytes       %d       [ XML ]\n", rc, index);
                 
                 /* write new received xml to disk */
-                count = fwrite(buf, sizeof (char), strlen(buf), outxml);
+                count = fwrite(buf, sizeof (char), rc, outxml);
                 if (count != rc) {
                     printf("fwrite error=%d %s\n", errno, strerror(errno));
                     break;
