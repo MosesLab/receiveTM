@@ -59,11 +59,11 @@
 FILE * openFile(char* name) {
 
     FILE *file;
-    file = fopen(name, "wb+");
+    file = fopen(name, "a+");
     if (file == NULL) {
         printf("fopen error = %d %s\n", errno, strerror(errno));
     }
-    /*printf("filepath = %d\n", (int) file);*/
+    printf("filepath = %d\n", (int)fileno(file));
     return file;
 }
 
@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
     int sigs, errcheck;
     int numImages      = 14;
     int xmlCount       = 0;
-    int xml_check      = 0;
+    int xml_check      = 1;
     int count          = 0;
     int totalFileSize  = 0;
     int index          = 0;
@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
     if (argc > 1)
         devname = argv[1];
     else
-        devname = "/dev/ttyUSB0";
+        devname = "/dev/ttyUSB1";
 
 /*********************************************************************************                           
 *                              SYNCLINK INITIALIZATION
@@ -249,6 +249,7 @@ int main(int argc, char* argv[]) {
             free(archive_file);
             fp = openFile(image_path);
 
+            xml_check = 1;
             totalFileSize = 0;
             index = 0;
         }
@@ -258,42 +259,44 @@ int main(int argc, char* argv[]) {
             printf("%d total bytes received for updating xml\n", totalFileSize);
             
             /* Include footer in xml */
-            fprintf(outxml, "</CATALOG>\n");
+            fprintf(outxml, "</CATALOG>\n\n");
+            fprintf(outxml, "\n");
             
-            /* Next xml packet shall trigger a new archive*/
-            xml_check = 1;
+            fflush(outxml);
+            fclose(outxml);
+            sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%d%s", xmlCount, ".xml");
+            rename(current_xml, archive_file);
+            free(archive_file);
+            outxml = openFile(current_xml);
+            
+            /* Write XML declaration/header */
+            fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+            fprintf(outxml, "<CATALOG>\n");
+            fprintf(outxml, "\n");
+            fflush(outxml);
+
+            xmlCount++;
+            xml_check = 0;
             totalFileSize = 0;
             index = 0;
         }
         else {
             /* data packet */
-            
-            /* check if the first few characters look like an xml */
-            strncpy(xml_header, buf, (strlen("<ROEIMAGE>")));
-            int cmp = strncmp(xml_header, "<ROEIMAGE>", 10 * sizeof(char));
-            if (cmp == 0) {
-                /* header matches xml format */
-                printf("xml_header = %s\n", xml_header);
-                printf("packet is an xml \n");
-                
-                /* check if it's time to archive current xml*/
-                if (xml_check == 1) {
-                    printf("creating new xml buffer\n");
-                    fclose(outxml);
-                    sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%d%s", xmlCount, ".xml");
-                    rename(current_xml, archive_file);
-                    free(archive_file);
-                    outxml = openFile(current_xml);
+            if (xml_check == 1) {
+                /* check if the first few characters look like an xml */
+                strncpy(xml_header, buf, (strlen("<ROEIMAGE>")));
+                int cmp = strncmp(xml_header, "<ROEIMAGE>", 10 * sizeof(char));
+                if (cmp == 0) {
+                    /* header matches xml format */
+                    printf("xml_header = %s\n", xml_header);
+                    printf("packet is an xml \n");
 
-                    /* Write XML declaration/header */
-                    fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-                    fprintf(outxml, "<CATALOG>\n");
-                    fprintf(outxml, "\n");
-
-                    xmlCount++;
-                    xml_check = 0;
+                    xml_check = 2;
                 }
+                else xml_check = 0;
                 
+            }
+            if (xml_check == 2){
                 printf("received %d bytes       %d       [ XML ]\n", rc, index);
                 
                 /* write new received xml to disk */
