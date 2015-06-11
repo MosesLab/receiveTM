@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/statvfs.h>
+#include <time.h>
 
 #include "synclink.h"
 
@@ -97,6 +98,9 @@ int main(int argc, char* argv[]) {
     struct mgsl_icount icount;
     struct timeval runtime_begin, runtime_end;
     int runtime_elapsed;
+    time_t current_time;
+    struct tm ts;
+    char timestamp[80];
     
     /*disk check debug stuff*/
     unsigned long free_disk;
@@ -198,6 +202,20 @@ int main(int argc, char* argv[]) {
     /* Prepare image buffer/file pointer */
     fp = openFile(image_path);
     
+    /*check if xml exists & archive*/
+    struct stat st;
+    if ((int)stat(current_xml, &st) == 0) {
+        
+        time(&current_time);
+        ts = *localtime(&current_time);
+        strftime(timestamp, sizeof(timestamp), "%y%m%d%H%M%S", &ts);
+        
+        sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%s%s", timestamp, ".xml");
+        rename(current_xml, archive_file);
+        xmlCount = 1;
+        
+    }
+    
     /* Prepare xml buffer/file pointer */
     outxml = openFile(current_xml);
     /* Write XML declaration/header */
@@ -205,7 +223,6 @@ int main(int argc, char* argv[]) {
     fprintf(outxml, "<CATALOG>\n");
     fprintf(outxml, "\n");
     fflush(outxml);
-    xmlCount++;
 
 /*********************************************************************************                           
 *                              MAIN TELEMETRY LOOP
@@ -285,8 +302,12 @@ int main(int argc, char* argv[]) {
                     printf("packet is an xml \n");
 
                     /*if not the first, archive current xml*/
-                    if (xmlCount > 1) {
-                        sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%d%s", xmlCount, ".xml");
+                    if (xmlCount > 0) {
+                        time(&current_time);
+                        ts = *localtime(&current_time);
+                        strftime(timestamp, sizeof (timestamp), "%y%m%d%H%M%S", &ts);                        
+                        
+                        sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%s%s", timestamp, ".xml");
                         rename(current_xml, archive_file);
 
                         outxml = openFile(current_xml);
@@ -298,7 +319,7 @@ int main(int argc, char* argv[]) {
                         fflush(outxml);
                     }
                     
-                    xmlCount++;
+                    xmlCount = 1;
                     xml_check = 2; //start saving xml data
                 }
                 else xml_check = 0; // mistake: this file is not xml
@@ -354,6 +375,5 @@ int main(int argc, char* argv[]) {
 
     close(fd);
     fclose(fp);
-    fclose(outxml);
     return 0;
 }
