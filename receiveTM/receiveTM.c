@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
     if (argc > 1)
         devname = argv[1];
     else
-        devname = "/dev/ttyUSB1";
+        devname = "/dev/ttyUSB0";
 
 /*********************************************************************************                           
 *                              SYNCLINK INITIALIZATION
@@ -204,6 +204,7 @@ int main(int argc, char* argv[]) {
     fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
     fprintf(outxml, "<CATALOG>\n");
     fprintf(outxml, "\n");
+    fflush(outxml);
     xmlCount++;
 
 /*********************************************************************************                           
@@ -246,10 +247,13 @@ int main(int argc, char* argv[]) {
             fclose(fp);
             sprintf(archive_file, "/home/moses/TM_data/%s", buf);
             rename(image_path, archive_file);
-            free(archive_file);
+            
+            //maybe not necessary:
+            //free(archive_file);
+            
             fp = openFile(image_path);
 
-            xml_check = 1;
+            xml_check = 1; // next image will be an xml
             totalFileSize = 0;
             index = 0;
         }
@@ -264,19 +268,8 @@ int main(int argc, char* argv[]) {
             
             fflush(outxml);
             fclose(outxml);
-            sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%d%s", xmlCount, ".xml");
-            rename(current_xml, archive_file);
-            free(archive_file);
-            outxml = openFile(current_xml);
             
-            /* Write XML declaration/header */
-            fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-            fprintf(outxml, "<CATALOG>\n");
-            fprintf(outxml, "\n");
-            fflush(outxml);
-
-            xmlCount++;
-            xml_check = 0;
+            xml_check = 0; //next packet will be an image
             totalFileSize = 0;
             index = 0;
         }
@@ -291,9 +284,24 @@ int main(int argc, char* argv[]) {
                     printf("xml_header = %s\n", xml_header);
                     printf("packet is an xml \n");
 
-                    xml_check = 2;
+                    /*if not the first, archive current xml*/
+                    if (xmlCount > 1) {
+                        sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%d%s", xmlCount, ".xml");
+                        rename(current_xml, archive_file);
+
+                        outxml = openFile(current_xml);
+
+                        /* Write XML declaration/header */
+                        fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+                        fprintf(outxml, "<CATALOG>\n");
+                        fprintf(outxml, "\n");
+                        fflush(outxml);
+                    }
+                    
+                    xmlCount++;
+                    xml_check = 2; //start saving xml data
                 }
-                else xml_check = 0;
+                else xml_check = 0; // mistake: this file is not xml
                 
             }
             if (xml_check == 2){
