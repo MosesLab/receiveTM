@@ -64,7 +64,7 @@ FILE * openFile(char* name) {
     if (file == NULL) {
         printf("fopen error = %d %s\n", errno, strerror(errno));
     }
-    printf("filepath = %d\n", (int)fileno(file));
+    //printf("filepath = %d\n", (int)fileno(file));
     return file;
 }
 
@@ -78,9 +78,9 @@ int main(int argc, char* argv[]) {
 *********************************************************************************/   
     FILE *fp = NULL;
     FILE *outxml = NULL;
+    pid_t MTV_child;
     int fd, rc;
-    int sigs, errcheck;
-    int numImages      = 14;
+    int sigs;
     int xmlCount       = 0;
     int xml_check      = 1;
     int count          = 0;
@@ -88,9 +88,9 @@ int main(int argc, char* argv[]) {
     int index          = 0;
     int ldisc          = N_HDLC;
     char *xml_header   = malloc(strlen("<ROEIMAGE>") + 1);
-    char *archive_file = malloc(strlen("/home/moses/TM_data/xml_archive/imageindex_000.xml") + 1);
-    char *current_xml  = "/home/moses/TM_data/imageindex.xml";
-    char *image_path   = "/home/moses/TM_data/image_buf.tmp";
+    char *archive_file = malloc(strlen("/media/moses/Data/TM_data/xml_archive/imageindex_000.xml") + 1);
+    char *current_xml  = "/media/moses/Data/TM_data/imageindex.xml";
+    char *image_path   = "/media/moses/Data/TM_data/image_buf.tmp";
     char *devname;
     unsigned char buf[BUFSIZ];
     MGSL_PARAMS params;
@@ -115,8 +115,8 @@ int main(int argc, char* argv[]) {
 /*********************************************************************************                           
 *                              SYNCLINK INITIALIZATION
 *********************************************************************************/   
-    printf("receive HDLC data on %s\n", devname);
-    printf("receiving/writing %d files\n", numImages);
+   
+    printf("receive HDLC data on device: %s\n", devname);
 
     /* open serial device with O_NONBLOCK to ignore DCD input */
     fd = open(devname, O_RDWR | O_NONBLOCK, 0);
@@ -210,7 +210,7 @@ int main(int argc, char* argv[]) {
         ts = *localtime(&current_time);
         strftime(timestamp, sizeof(timestamp), "%y%m%d%H%M%S", &ts);
         
-        sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%s%s", timestamp, ".xml");
+        sprintf(archive_file, "/media/moses/Data/TM_data/xml_archive/imageindex_%s%s", timestamp, ".xml");
         rename(current_xml, archive_file);
         xmlCount = 1;
         
@@ -222,8 +222,33 @@ int main(int argc, char* argv[]) {
     fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
     fprintf(outxml, "<CATALOG>\n");
     fprintf(outxml, "\n");
+    fprintf(outxml, "</CATALOG>\n");
     fflush(outxml);
+    
+    /*place cursor to the line above '/catalog'*/
+    if (fseek(outxml, -11, SEEK_END) < 0) {
+        /* seek error */
+        printf("file seek error=%d %s\n", errno, strerror(errno));
+        return;
+    }
 
+    MTV_child = fork();
+    if (MTV_child < 0) {
+        /* fork error */
+        printf("fork error=%d %s\n", errno, strerror(errno));
+        return;
+    }
+    /*run MOSES TV in preparation*/
+    else if (MTV_child == 0) {                          
+        system("sudo gnome-terminal -x tcsh /media/moses/Data/MTV_EGSE/start_MOSESTV.tcsh");
+    }
+    else {
+        system("clear");
+        printf("**************************************************\n");
+        printf("*                    receiveTM                   *\n");
+        printf("**************************************************\n\n");
+        printf("Waiting for incoming data.....\n\n");
+    }
 /*********************************************************************************                           
 *                              MAIN TELEMETRY LOOP
 *********************************************************************************/   
@@ -262,7 +287,7 @@ int main(int argc, char* argv[]) {
             /* Flush the stream, save the image, free up the buffer*/
             fflush(fp);
             fclose(fp);
-            sprintf(archive_file, "/home/moses/TM_data/%s", buf);
+            sprintf(archive_file, "/media/moses/Data/TM_data/%s", buf);
             rename(image_path, archive_file);
             
             //maybe not necessary:
@@ -280,8 +305,8 @@ int main(int argc, char* argv[]) {
             printf("%d total bytes received for updating xml\n", totalFileSize);
             
             /* Include footer in xml */
-            fprintf(outxml, "</CATALOG>\n\n");
-            fprintf(outxml, "\n");
+            //fprintf(outxml, "</CATALOG>\n\n");
+            //fprintf(outxml, "\n");
             
             fflush(outxml);
             fclose(outxml);
@@ -307,7 +332,7 @@ int main(int argc, char* argv[]) {
                         ts = *localtime(&current_time);
                         strftime(timestamp, sizeof (timestamp), "%y%m%d%H%M%S", &ts);                        
                         
-                        sprintf(archive_file, "/home/moses/TM_data/xml_archive/imageindex_%s%s", timestamp, ".xml");
+                        sprintf(archive_file, "/media/moses/Data/TM_data/xml_archive/imageindex_%s%s", timestamp, ".xml");
                         rename(current_xml, archive_file);
 
                         outxml = openFile(current_xml);
@@ -320,12 +345,12 @@ int main(int argc, char* argv[]) {
                     }
                     
                     xmlCount = 1;
-                    xml_check = 2; //start saving xml data
+                    xml_check = 2;              //start saving xml data
                 }
-                else xml_check = 0; // mistake: this file is not xml
+                else xml_check = 0;             // mistake: this file is not xml
                 
             }
-            if (xml_check == 2){
+            if (xml_check == 2){                //start saving xml data
                 printf("received %d bytes       %d       [ XML ]\n", rc, index);
                 
                 /* write new received xml to disk */
