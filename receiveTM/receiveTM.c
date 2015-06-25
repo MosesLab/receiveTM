@@ -186,8 +186,6 @@ int main(int argc, char* argv[]) {
     /* set device to blocking mode for reads and writes */
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) + ~O_NONBLOCK);
 
-    /* set ctrl-C to interrupt syscall but not exit program */
-    printf("Press Ctrl-C to stop program.\n");
     signal(SIGINT, sigint_handler);
     siginterrupt(SIGINT, 1);
 
@@ -231,6 +229,8 @@ int main(int argc, char* argv[]) {
         return;
     }
 
+    
+    //system ("cd -L /media/moses/Data/MTV_EGSE/");
     MTV_child = fork();
     if (MTV_child < 0) {
         /* fork error */
@@ -246,7 +246,9 @@ int main(int argc, char* argv[]) {
         printf("**************************************************\n");
         printf("*                    receiveTM                   *\n");
         printf("**************************************************\n\n");
-        printf("Waiting for incoming data.....\n\n");
+        /* set ctrl-C to interrupt syscall but not exit program */
+        printf("Press Ctrl-C to stop program.\n");
+        printf("Waiting for incoming data.....\n");
     }
 /*********************************************************************************                           
 *                              MAIN TELEMETRY LOOP
