@@ -221,7 +221,6 @@ int main(int argc, char* argv[]) {
     /* Write XML declaration/header */
     fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
     fprintf(outxml, "<CATALOG>\n");
-    fprintf(outxml, "\n");
     fprintf(outxml, "</CATALOG>\n");
     fflush(outxml);
     
