@@ -239,7 +239,9 @@ int main(int argc, char* argv[]) {
     }
     /*run MOSES TV in preparation*/
     else if (MTV_child == 0) {                          
+        system("clear");
         system("sudo gnome-terminal -x tcsh /media/moses/Data/MTV_EGSE/start_MOSESTV.tcsh");
+        system("clear");
     }
     else {
         system("clear");
@@ -395,6 +397,10 @@ int main(int argc, char* argv[]) {
 
         close(fd);
         fclose(fp);
+    }
+    
+    if (MTV_child == 0) {
+        sleep(10);
     }
     
     /*Child and parent join and return*/
