@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
     int fd, rc;
     int sigs;
     int xmlCount       = 0;
-    int xml_check      = 1;                     //Set this value to '0' if expecting ROE first; '1' if expecting XML first
+    int xml_check      = 0;                     //Set this value to '0' if expecting ROE first; '1' if expecting XML first
     int count          = 0;
     int totalFileSize  = 0;
     int index          = 0;
@@ -249,157 +249,154 @@ int main(int argc, char* argv[]) {
         /* set ctrl-C to interrupt syscall but not exit program */
         printf("Press Ctrl-C to stop program.\n");
         printf("Waiting for incoming data.....\n");
-    }
-/*********************************************************************************                           
-*                              MAIN TELEMETRY LOOP
-*********************************************************************************/   
-    for (;;) {
-        /* check crc */
-        rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
-        if (crctemp != icount.rxcrc) {
-            printf("    CRC Failed!\n");
-        }
-        crctemp = icount.rxcrc;
-        
-        /* wait for and receive data from serial device */
-        memset(buf, 0, BUFSIZ);
-        rc = read(fd, buf, size);
+    
+        /*********************************************************************************                           
+        *                              MAIN TELEMETRY LOOP
+        *********************************************************************************/   
+        for (;;) {
+            /* check crc */
+            rc = ioctl(fd, MGSL_IOCGSTATS, &icount);
+            if (crctemp != icount.rxcrc) {
+                printf("    CRC Failed!\n");
+            }
+            crctemp = icount.rxcrc;
 
-        /* Check received packet size for expected values */
-        if (rc < 0) {
-            /* read error */
-            printf("read error=%d %s\n", errno, strerror(errno));
-            break;
-        }
-        else if (rc == 0) {
-            /* Incorrect synclink settings - set NONBLOCK mode */
-            gettimeofday(&runtime_end, NULL);
-            runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
-            printf("program ran for %-3.2f seconds before failing\n", (float) runtime_elapsed / (float) 1000000);
-            printf("read returned with no data - set NONBLOCK mode to continue\n");
-            break;
-        }
-        else if (rc == 16) {
-            /* Terminating characters for image */
-            printf("received %d bytes       %d       [ TERM ]\n", rc, index);
-            printf("%d total bytes received for file: %s\n", totalFileSize, buf);
-            printf("creating new image buffer\n");
-            
-            /* Flush the stream, save the image, free up the buffer*/
-            fflush(fp);
-            fclose(fp);
-            sprintf(archive_file, "/media/moses/Data/TM_data/%s", buf);
-            rename(image_path, archive_file);
-            
-            //maybe not necessary:
-            //free(archive_file);
-            
-            fp = openFile(image_path);
+            /* wait for and receive data from serial device */
+            memset(buf, 0, BUFSIZ);
+            rc = read(fd, buf, size);
 
-            xml_check = 1; // next image will be an xml
-            totalFileSize = 0;
-            index = 0;
-        }
-        else if (rc == 14){
-            /* Terminating characters for xml */    
-            printf("received %d bytes       %d       [ TERM ]\n", rc, index);
-            printf("%d total bytes received for updating xml\n", totalFileSize);
-            
-            /* Include footer in xml */
-            fprintf(outxml, "</CATALOG>\n");
-            //fprintf(outxml, "\n");
-            
-            fflush(outxml);
-            fclose(outxml);
-            
-            xml_check = 0; //next packet will be an image
-            totalFileSize = 0;
-            index = 0;
-        }
-        else {
-            /* data packet */
-            if (xml_check == 1) {
-                /* check if the first few characters look like an xml */
-                strncpy(xml_header, buf, (strlen("<ROEIMAGE>")));
-                int cmp = strncmp(xml_header, "<ROEIMAGE>", 10 * sizeof(char));
-                if (cmp == 0) {
-                    /* header matches xml format */
-                    printf("xml_header = %s\n", xml_header);
-                    printf("packet is an xml \n");
+            /* Check received packet size for expected values */
+            if (rc < 0) {
+                /* read error */
+                printf("read error=%d %s\n", errno, strerror(errno));
+                break;
+            } else if (rc == 0) {
+                /* Incorrect synclink settings - set NONBLOCK mode */
+                gettimeofday(&runtime_end, NULL);
+                runtime_elapsed = 1000000 * ((long) (runtime_end.tv_sec) - (long) (runtime_begin.tv_sec)) + (long) (runtime_end.tv_usec) - (long) (runtime_begin.tv_usec);
+                printf("program ran for %-3.2f seconds before failing\n", (float) runtime_elapsed / (float) 1000000);
+                printf("read returned with no data - set NONBLOCK mode to continue\n");
+                break;
+            } else if (rc == 16) {
+                /* Terminating characters for image */
+                printf("received %d bytes       %d       [ TERM ]\n", rc, index);
+                printf("%d total bytes received for file: %s\n", totalFileSize, buf);
+                printf("creating new image buffer\n");
 
-                    /*if not the first, archive current xml*/
-                    if (xmlCount > 0) {
-                        time(&current_time);
-                        ts = *localtime(&current_time);
-                        strftime(timestamp, sizeof (timestamp), "%y%m%d%H%M%S", &ts);                        
-                        
-                        sprintf(archive_file, "/media/moses/Data/TM_data/xml_archive/imageindex_%s%s", timestamp, ".xml");
-                        rename(current_xml, archive_file);
+                /* Flush the stream, save the image, free up the buffer*/
+                fflush(fp);
+                fclose(fp);
+                sprintf(archive_file, "/media/moses/Data/TM_data/%s", buf);
+                rename(image_path, archive_file);
 
-                        outxml = openFile(current_xml);
+                //maybe not necessary:
+                //free(archive_file);
 
-                        /* Write XML declaration/header */
-                        fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-                        fprintf(outxml, "<CATALOG>\n\n");
-                        //fprintf(outxml, "\n");
-                        fflush(outxml);
+                fp = openFile(image_path);
+
+                xml_check = 1; // next image will be an xml
+                totalFileSize = 0;
+                index = 0;
+            } else if (rc == 14) {
+                /* Terminating characters for xml */
+                printf("received %d bytes       %d       [ TERM ]\n", rc, index);
+                printf("%d total bytes received for updating xml\n", totalFileSize);
+
+                /* Include footer in xml */
+                fprintf(outxml, "</CATALOG>\n");
+                //fprintf(outxml, "\n");
+
+                fflush(outxml);
+                fclose(outxml);
+
+                xml_check = 0; //next packet will be an image
+                totalFileSize = 0;
+                index = 0;
+            } else {
+                /* data packet */
+                if (xml_check == 1) {
+                    /* check if the first few characters look like an xml */
+                    strncpy(xml_header, buf, (strlen("<ROEIMAGE>")));
+                    int cmp = strncmp(xml_header, "<ROEIMAGE>", 10 * sizeof (char));
+                    if (cmp == 0) {
+                        /* header matches xml format */
+                        printf("xml_header = %s\n", xml_header);
+                        printf("packet is an xml \n");
+
+                        /*if not the first, archive current xml*/
+                        if (xmlCount > 0) {
+                            time(&current_time);
+                            ts = *localtime(&current_time);
+                            strftime(timestamp, sizeof (timestamp), "%y%m%d%H%M%S", &ts);
+
+                            sprintf(archive_file, "/media/moses/Data/TM_data/xml_archive/imageindex_%s%s", timestamp, ".xml");
+                            rename(current_xml, archive_file);
+
+                            outxml = openFile(current_xml);
+
+                            /* Write XML declaration/header */
+                            fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
+                            fprintf(outxml, "<CATALOG>\n\n");
+                            //fprintf(outxml, "\n");
+                            fflush(outxml);
+                        }
+
+                        xmlCount = 1;
+                        xml_check = 2; //start saving xml data
+                    } else xml_check = 0; // mistake: this file is not xml
+
+                }
+                if (xml_check == 2) { //start saving xml data
+                    printf("received %d bytes       %d       [ XML ]\n", rc, index);
+
+                    /* write new received xml to disk */
+                    count = fwrite(buf, sizeof (char), rc, outxml);
+                    if (count != rc) {
+                        printf("fwrite error=%d %s\n", errno, strerror(errno));
+                        break;
                     }
-                    
-                    xmlCount = 1;
-                    xml_check = 2;              //start saving xml data
-                }
-                else xml_check = 0;             // mistake: this file is not xml
-                
-            }
-            if (xml_check == 2){                //start saving xml data
-                printf("received %d bytes       %d       [ XML ]\n", rc, index);
-                
-                /* write new received xml to disk */
-                count = fwrite(buf, sizeof (char), rc, outxml);
-                if (count != rc) {
-                    printf("fwrite error=%d %s\n", errno, strerror(errno));
-                    break;
-                }
-                if (fflush(fp) != 0) {
-                    printf("fflush error=%d %s\n", errno, strerror(errno));
-                    return errno;
-                }
-                
-                fprintf(outxml, "\n");
-                totalFileSize += count;
-                index++;
-            }
-            else {
-                /* image packet */
-                
-                /* save received data to image file */
-                printf("received %d bytes       %d\n", rc, index);
-                count = fwrite(buf, sizeof (char), rc, fp);
-                if (count != rc) {
-                    printf("fwrite error=%d %s\n", errno, strerror(errno));
-                    break;
-                }
-                if (fflush(fp) != 0) {
-                    printf("fflush error=%d %s\n", errno, strerror(errno));
-                    return errno;
-                }
+                    if (fflush(fp) != 0) {
+                        printf("fflush error=%d %s\n", errno, strerror(errno));
+                        return errno;
+                    }
 
-                totalFileSize += count;
-                index++;
+                    fprintf(outxml, "\n");
+                    totalFileSize += count;
+                    index++;
+                } else {
+                    /* image packet */
+
+                    /* save received data to image file */
+                    printf("received %d bytes       %d\n", rc, index);
+                    count = fwrite(buf, sizeof (char), rc, fp);
+                    if (count != rc) {
+                        printf("fwrite error=%d %s\n", errno, strerror(errno));
+                        break;
+                    }
+                    if (fflush(fp) != 0) {
+                        printf("fflush error=%d %s\n", errno, strerror(errno));
+                        return errno;
+                    }
+
+                    totalFileSize += count;
+                    index++;
+                }
             }
         }
+    
+        /* Exit protocol; shouldn't reach here unless synclink blocking mode set*/
+        printf("Turn off RTS and DTR serial outputs\n");
+        sigs = TIOCM_RTS + TIOCM_DTR;
+        rc = ioctl(fd, TIOCMBIC, &sigs);
+        if (rc < 0) {
+            printf("negate DTR/RTS error=%d %s\n", errno, strerror(errno));
+            return rc;
+        }
+
+        close(fd);
+        fclose(fp);
     }
     
-    /* Exit protocol; shouldn't reach here unless synclink blocking mode set*/
-    printf("Turn off RTS and DTR serial outputs\n");
-    sigs = TIOCM_RTS + TIOCM_DTR;
-    rc = ioctl(fd, TIOCMBIC, &sigs);
-    if (rc < 0) {
-        printf("negate DTR/RTS error=%d %s\n", errno, strerror(errno));
-        return rc;
-    }
-
-    close(fd);
-    fclose(fp);
+    /*Child and parent join and return*/
     return 0;
 }
