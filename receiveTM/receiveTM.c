@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
     int fd, rc;
     int sigs;
     int xmlCount       = 0;
-    int xml_check      = 0;                     //Set this value to '0' if expecting ROE first; '1' if expecting XML first
+    int xml_check      = 1;                     //Set this value to '0' if expecting ROE first; '1' if expecting XML first
     int count          = 0;
     int totalFileSize  = 0;
     int index          = 0;
