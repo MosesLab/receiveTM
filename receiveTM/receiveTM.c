@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
     int fd, rc;
     int sigs;
     int xmlCount       = 0;
-    int xml_check      = 1;
+    int xml_check      = 0;                     //Set this value to '0' if expecting ROE first; '1' if expecting XML first
     int count          = 0;
     int totalFileSize  = 0;
     int index          = 0;
@@ -218,7 +218,7 @@ int main(int argc, char* argv[]) {
     outxml = openFile(current_xml);
     /* Write XML declaration/header */
     fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-    fprintf(outxml, "<CATALOG>\n");
+    fprintf(outxml, "<CATALOG>\n\n");
     fprintf(outxml, "</CATALOG>\n");
     fflush(outxml);
     
@@ -306,7 +306,7 @@ int main(int argc, char* argv[]) {
             printf("%d total bytes received for updating xml\n", totalFileSize);
             
             /* Include footer in xml */
-            //fprintf(outxml, "</CATALOG>\n\n");
+            fprintf(outxml, "</CATALOG>\n");
             //fprintf(outxml, "\n");
             
             fflush(outxml);
@@ -340,8 +340,8 @@ int main(int argc, char* argv[]) {
 
                         /* Write XML declaration/header */
                         fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
-                        fprintf(outxml, "<CATALOG>\n");
-                        fprintf(outxml, "\n");
+                        fprintf(outxml, "<CATALOG>\n\n");
+                        //fprintf(outxml, "\n");
                         fflush(outxml);
                     }
                     
