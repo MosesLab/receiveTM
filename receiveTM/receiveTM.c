@@ -61,6 +61,8 @@ FILE * openFile(char* name) {
 
     FILE *file;
     file = fopen(name, "a+");
+    fclose(file);
+    file = fopen(name, "r+");
     if (file == NULL) {
         printf("fopen error = %d %s\n", errno, strerror(errno));
     }
@@ -221,14 +223,12 @@ int main(int argc, char* argv[]) {
     fprintf(outxml, "<CATALOG>\n\n");
     fprintf(outxml, "</CATALOG>\n");
     fflush(outxml);
-    
-    /*place cursor to the line above '/catalog'*/
-    if (fseek(outxml, -11, SEEK_END) < 0) {
-        /* seek error */
+
+    if (fseek(outxml, (-11), SEEK_END) < 0) {
         printf("file seek error=%d %s\n", errno, strerror(errno));
         return;
     }
-
+    fflush(outxml);
     
     //system ("cd -L /media/moses/Data/MTV_EGSE/");
     MTV_child = fork();
@@ -238,10 +238,8 @@ int main(int argc, char* argv[]) {
         return;
     }
     /*run MOSES TV in preparation*/
-    else if (MTV_child == 0) {                          
-        system("clear");
+    else if (MTV_child == 0) {          
         system("sudo gnome-terminal -x tcsh /media/moses/Data/MTV_EGSE/start_MOSESTV.tcsh");
-        system("clear");
     }
     else {
         system("clear");
@@ -270,8 +268,14 @@ int main(int argc, char* argv[]) {
             /* Check received packet size for expected values */
             if (rc < 0) {
                 /* read error */
-                printf("read error=%d %s\n", errno, strerror(errno));
-                break;
+                if (errno == 4) {
+                    printf("\nreceiveTM interrupted\n");
+                    break;
+                }
+                else {
+                    printf("read error=%d %s\n", errno, strerror(errno));
+                    break;
+                }
             } else if (rc == 0) {
                 /* Incorrect synclink settings - set NONBLOCK mode */
                 gettimeofday(&runtime_end, NULL);
@@ -339,8 +343,15 @@ int main(int argc, char* argv[]) {
                             /* Write XML declaration/header */
                             fprintf(outxml, "<?xml version=\"1.0\" encoding=\"ASCII\" standalone=\"yes\"?>\n");
                             fprintf(outxml, "<CATALOG>\n\n");
-                            //fprintf(outxml, "\n");
+                            fprintf(outxml, "</CATALOG>\n");
                             fflush(outxml);
+                            
+                            if (fseek(outxml, (-11), SEEK_END) < 0) {
+                                printf("file seek error=%d %s\n", errno, strerror(errno));
+                                return;
+                            }
+                            fflush(outxml);
+                            
                         }
 
                         xmlCount = 1;
@@ -351,6 +362,7 @@ int main(int argc, char* argv[]) {
                 if (xml_check == 2) { //start saving xml data
                     printf("received %d bytes       %d       [ XML ]\n", rc, index);
 
+                    
                     /* write new received xml to disk */
                     count = fwrite(buf, sizeof (char), rc, outxml);
                     if (count != rc) {
