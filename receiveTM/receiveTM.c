@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
      * and user application that performs intermediate processing,
      * formatting, and buffering of data.
      */
-    rc = ioctl(fd, TIOCSETD, &ldisc); //Change to N_TTY?
+    rc = ioctl(fd, TIOCSETD, &ldisc);
     if (rc < 0) {
         printf("set line discipline error=%d %s\n",
                 errno, strerror(errno));
@@ -223,21 +223,20 @@ int main(int argc, char* argv[]) {
     fprintf(outxml, "<CATALOG>\n\n");
     fprintf(outxml, "</CATALOG>\n");
     fflush(outxml);
-
+    /*place cursor right before '/catalog' tag*/
     if (fseek(outxml, (-11), SEEK_END) < 0) {
         printf("file seek error=%d %s\n", errno, strerror(errno));
         return;
     }
     fflush(outxml);
     
-    //system ("cd -L /media/moses/Data/MTV_EGSE/");
+    /*Fork process to startup MOSES_TV*/
     MTV_child = fork();
     if (MTV_child < 0) {
         /* fork error */
         printf("fork error=%d %s\n", errno, strerror(errno));
         return;
     }
-    /*run MOSES TV in preparation*/
     else if (MTV_child == 0) {          
         system("sudo gnome-terminal -x tcsh /media/moses/Data/MTV_EGSE/start_MOSESTV.tcsh");
     }
@@ -246,6 +245,7 @@ int main(int argc, char* argv[]) {
         printf("**************************************************\n");
         printf("*                    receiveTM                   *\n");
         printf("**************************************************\n\n");
+        
         /* set ctrl-C to interrupt syscall but not exit program */
         printf("Press Ctrl-C to stop program.\n");
         printf("Waiting for incoming data.....\n");
@@ -295,9 +295,6 @@ int main(int argc, char* argv[]) {
                 sprintf(archive_file, "/media/moses/Data/TM_data/%s", buf);
                 rename(image_path, archive_file);
 
-                //maybe not necessary:
-                //free(archive_file);
-
                 fp = openFile(image_path);
 
                 xml_check = 1; // next image will be an xml
@@ -310,11 +307,9 @@ int main(int argc, char* argv[]) {
 
                 /* Include footer in xml */
                 fprintf(outxml, "</CATALOG>\n");
-                //fprintf(outxml, "\n");
 
                 fflush(outxml);
                 fclose(outxml);
-
                 xml_check = 0; //next packet will be an image
                 totalFileSize = 0;
                 index = 0;
@@ -346,6 +341,7 @@ int main(int argc, char* argv[]) {
                             fprintf(outxml, "</CATALOG>\n");
                             fflush(outxml);
                             
+                            /*place cursor right before '/catalog' tag*/
                             if (fseek(outxml, (-11), SEEK_END) < 0) {
                                 printf("file seek error=%d %s\n", errno, strerror(errno));
                                 return;
@@ -361,7 +357,6 @@ int main(int argc, char* argv[]) {
                 }
                 if (xml_check == 2) { //start saving xml data
                     printf("received %d bytes       %d       [ XML ]\n", rc, index);
-
                     
                     /* write new received xml to disk */
                     count = fwrite(buf, sizeof (char), rc, outxml);
@@ -379,7 +374,6 @@ int main(int argc, char* argv[]) {
                     index++;
                 } else {
                     /* image packet */
-
                     /* save received data to image file */
                     printf("received %d bytes       %d\n", rc, index);
                     count = fwrite(buf, sizeof (char), rc, fp);
@@ -398,7 +392,7 @@ int main(int argc, char* argv[]) {
             }
         }
     
-        /* Exit protocol; shouldn't reach here unless synclink blocking mode set*/
+        /* Exit protocol; shouldn't reach here until interrupted with Ctrl-C*/
         printf("Turn off RTS and DTR serial outputs\n");
         sigs = TIOCM_RTS + TIOCM_DTR;
         rc = ioctl(fd, TIOCMBIC, &sigs);
@@ -409,10 +403,6 @@ int main(int argc, char* argv[]) {
 
         close(fd);
         fclose(fp);
-    }
-    
-    if (MTV_child == 0) {
-        sleep(10);
     }
     
     /*Child and parent join and return*/
