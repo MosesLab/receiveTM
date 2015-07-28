@@ -238,7 +238,7 @@ int main(int argc, char* argv[]) {
         return;
     }
     else if (MTV_child == 0) {          
-        system("sudo gnome-terminal -x tcsh /media/moses/Data/MTV_EGSE/start_MOSESTV.tcsh");
+        system("sudo gnome-terminal -x mtv_egse &");
     }
     else {
         system("clear");
